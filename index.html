@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube 視聴習慣アナライザー</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --background-color: #121212;
+            --surface-color: #1e1e1e;
+            --primary-text-color: #ffffff;
+            --secondary-text-color: #aaaaaa;
+            --accent-color: #ff0000;
+            --border-color: #333333;
+            --success-color: #4caf50;
+            --error-color: #f44336;
+            --button-blue-color: #3ea6ff;
+            --button-gray-color: #5a5a5a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-image: linear-gradient(to top, #121212, #1a1a1a);
+            color: var(--primary-text-color);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        #app {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.5rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            color: var(--primary-text-color);
+            margin-bottom: 0.5rem;
+        }
+
+        header h1 .fa-youtube {
+            color: var(--accent-color);
+        }
+
+        header p {
+            font-size: 1.1rem;
+            color: var(--secondary-text-color);
+        }
+
+        main {
+            background-color: var(--surface-color);
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        section {
+            margin-bottom: 3rem;
+        }
+
+        section:last-child {
+            margin-bottom: 0;
+        }
+
+        .analysis-section {
+            margin-bottom: 4rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .section-header > div {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .cache-status {
+            font-size: 0.85rem;
+            color: var(--secondary-text-color);
+            font-style: italic;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            margin: 0;
+            padding: 0;
+            border: none;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+            margin-bottom: 1.5rem;
+            color: var(--secondary-text-color);
+            font-weight: 500;
+        }
+
+        h3 .fas {
+            margin-right: 0.75rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        button, .button {
+            display: inline-block;
+            padding: 0.75rem 1.25rem;
+            background-color: var(--accent-color);
+            color: var(--primary-text-color);
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        #loginBtn {
+             width: 100%;
+             max-width: 400px;
+             font-size: 1.1rem;
+             padding: 1rem;
+        }
+
+        #loginBtn .fa-google {
+            margin-right: 0.75rem;
+        }
+
+        #onboarding {
+            text-align: center;
+        }
+
+        #onboarding > p {
+            max-width: 600px;
+            margin: 0 auto 2rem;
+            color: var(--secondary-text-color);
+        }
+
+        #refreshBtn {
+            background-color: var(--button-gray-color);
+            font-size: 0.9rem;
+        }
+        #refreshBtn .fa-sync-alt {
+            margin-right: 0.5rem;
+        }
+
+        button:disabled, .button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+            filter: grayscale(50%);
+        }
+
+        button:hover:not(:disabled), .button:hover:not(:disabled) {
+            filter: brightness(1.2);
+            transform: translateY(-2px);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error-message {
+            color: var(--error-color);
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        /* Summary Dashboard */
+        #summary-dashboard {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+        @media (min-width: 768px) {
+            #summary-dashboard {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .summary-section {
+            background-color: var(--background-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .summary-section h4 {
+            margin-bottom: 1.5rem;
+            color: var(--secondary-text-color);
+            font-weight: 500;
+        }
+        .summary-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+        .summary-card {
+            background-color: var(--surface-color);
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .summary-card .value {
+            display: block;
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-text-color);
+            margin-bottom: 0.25rem;
+        }
+        .summary-card .label {
+            font-size: 0.9rem;
+            color: var(--secondary-text-color);
+        }
+        .actions-list {
+            list-style: none;
+            padding: 0;
+        }
+        .actions-list li {
+            background-color: var(--surface-color);
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+        }
+        .actions-list li:last-child {
+            margin-bottom: 0;
+        }
+        .actions-list .fas {
+            margin-right: 1rem;
+            color: var(--button-blue-color);
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Deep Analysis Controls */
+        #deep-analysis-controls {
+            background-color: var(--background-color);
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        #deep-analysis-controls p {
+            margin-bottom: 1rem;
+            color: var(--secondary-text-color);
+        }
+        #startDeepAnalysisBtn {
+            background-color: var(--button-blue-color);
+            margin-bottom: 1rem;
+        }
+        #analysis-progress-container {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .progress-bar-container {
+            background-color: var(--background-color);
+            border-radius: 5px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            height: 20px;
+        }
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: var(--button-blue-color);
+            transition: width 0.3s ease-in-out;
+        }
+        #analysis-progress-text {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--secondary-text-color);
+        }
+
+        /* Filter & Settings Controls */
+        .list-controls-container {
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+        #inactivity-threshold-controls {
+            margin-bottom: 1.5rem;
+            background-color: var(--background-color);
+            padding: 1rem;
+            border-radius: 6px;
+        }
+        #inactivity-threshold-controls label {
+            display: block;
+            margin-bottom: 0.75rem;
+            font-weight: 500;
+            color: var(--secondary-text-color);
+        }
+        #inactivity-threshold-controls .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        #inactivity-threshold-controls input[type="range"] {
+            flex-grow: 1;
+            cursor: pointer;
+        }
+        #inactivity-threshold-controls #threshold-value {
+            font-weight: bold;
+            color: var(--button-blue-color);
+            background-color: var(--surface-color);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            min-width: 70px;
+            text-align: center;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            background-color: var(--button-gray-color);
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+        }
+        .filter-btn.active {
+            background-color: var(--button-blue-color);
+            box-shadow: 0 0 10px rgba(62, 166, 255, 0.5);
+        }
+
+
+        /* Bulk Actions */
+        .bulk-actions {
+            background-color: var(--background-color);
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+        .bulk-actions label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .bulk-actions input[type="checkbox"] {
+            margin-right: 0.75rem;
+            transform: scale(1.2);
+        }
+        #bulkUnsubscribeBtn {
+            font-size: 0.9rem;
+            background-color: var(--error-color);
+        }
+
+        .channel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .channel-card {
+            background-color: var(--background-color);
+            border-radius: 8px;
+            padding: 1.25rem;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .channel-card.unsubscribed {
+            opacity: 0.5;
+            background-color: #2a2a2a;
+        }
+
+        .channel-card.analyzing {
+            opacity: 0.7;
+        }
+
+        .channel-card.unsubscribed::after {
+            content: '解除済み';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            font-weight: bold;
+            z-index: 2;
+        }
+
+        .channel-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .channel-card-checkbox {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            transform: scale(1.3);
+            z-index: 1;
+        }
+
+        .channel-card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        .channel-card-header img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--border-color);
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+
+        .channel-card-header h4 {
+            font-size: 1rem;
+            margin: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .channel-card-stats {
+            list-style-type: none;
+            padding: 0;
+            margin-bottom: 1rem;
+            text-align: left;
+            font-size: 0.85rem;
+            color: var(--secondary-text-color);
+        }
+
+        .channel-card-stats li {
+            margin-bottom: 0.4rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .channel-card-stats li .value.analyzing-value .fa-spinner {
+             animation: spin 1.5s linear infinite;
+        }
+
+        .channel-card-stats li .label {
+            font-weight: 500;
+            margin-right: 0.5rem;
+        }
+
+        .channel-card-stats li .value {
+            font-weight: bold;
+            color: var(--primary-text-color);
+        }
+
+        .channel-card-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: auto;
+        }
+
+        .channel-card-actions button {
+            width: 100%;
+            font-size: 0.8rem;
+            padding: 0.5rem;
+            font-weight: 600;
+        }
+
+        .btn-unsubscribe { background-color: var(--error-color); }
+        .btn-check { background-color: var(--button-gray-color); }
+
+
+        .loader {
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--accent-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto 0;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .more-results-note {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: var(--secondary-text-color);
+            font-style: italic;
+        }
+
+        .no-results {
+             color: var(--secondary-text-color);
+             text-align: center;
+             padding: 2rem;
+             border: 2px dashed var(--border-color);
+             border-radius: 8px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease, bottom 0.5s ease;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            bottom: 30px;
+            opacity: 1;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1><i class="fab fa-youtube"></i> YouTube 視聴習慣アナライザー</h1>
+            <p>視聴習慣を分析して、最適なチャンネル登録を見つけましょう。</p>
+        </header>
+
+        <main>
+            <section id="onboarding">
+                <h2>アカウントを連携して分析を開始</h2>
+                <p>「Googleでログイン」ボタンをクリックして、YouTubeアカウントのチャンネル登録情報の**閲覧、編集、削除**を許可してください。あなたのデータは安全に処理され、このアプリがあなたの許可なくチャンネル登録を解除することはありません。</p>
+
+                <!-- This is now a link to trigger the backend auth flow -->
+                <a id="loginBtn" class="button" href="/auth/google"><i class="fab fa-google"></i> Googleでログインして分析を開始</a>
+                <div id="loader" class="loader hidden"></div>
+                <p id="error" class="error-message" role="alert"></p>
+            </section>
+
+            <section id="results" class="hidden" aria-live="polite">
+                <div class="section-header">
+                    <h2>分析結果</h2>
+                    <div>
+                        <p id="cache-status-message" class="cache-status"></p>
+                        <button id="refreshBtn"><i class="fas fa-sync-alt"></i> 全件再分析</button>
+                    </div>
+                </div>
+
+                <div id="summary-dashboard">
+                    <div class="summary-section">
+                        <h4><i class="fas fa-chart-pie"></i> 統計サマリー</h4>
+                        <div id="summary-card-container" class="summary-card-grid"></div>
+                    </div>
+                    <div class="summary-section">
+                        <h4><i class="fas fa-tasks"></i> おすすめアクション</h4>
+                        <ul id="actions-list-container" class="actions-list"></ul>
+                    </div>
+                </div>
+
+                <div class="analysis-section" id="inactive-channels">
+                    <h3><i class="fas fa-bed"></i> 登録チャンネル一覧</h3>
+                     <div id="deep-analysis-controls" class="hidden">
+                        <p>チャンネルの活動状況を詳しく分析します。登録チャンネル数によっては時間がかかる場合があります。</p>
+                        <button id="startDeepAnalysisBtn"><i class="fas fa-cogs"></i> 活動状況の分析を開始</button>
+                        <div id="analysis-progress-container" class="hidden">
+                           <div class="progress-bar-container">
+                               <div id="analysis-progress-bar" class="progress-bar"></div>
+                           </div>
+                           <p id="analysis-progress-text"></p>
+                        </div>
+                    </div>
+
+                    <div id="channel-list-container" class="hidden">
+                         <div class="list-controls-container">
+                            <div id="inactivity-threshold-controls">
+                                <label for="inactivity-threshold-slider">活動休止の基準</label>
+                                <div class="slider-container">
+                                    <input type="range" id="inactivity-threshold-slider" min="7" max="365" value="60">
+                                    <span id="threshold-value">60 日</span>
+                                </div>
+                            </div>
+                            <div class="filter-controls">
+                                <button class="filter-btn active" data-filter="all">すべて</button>
+                                <button class="filter-btn" data-filter="inactive">活動休止中</button>
+                                <button class="filter-btn" data-filter="active">活動中</button>
+                                <button class="filter-btn" data-filter="pending">分析待ち</button>
+                                <button class="filter-btn" data-filter="unsubscribed">登録解除済み</button>
+                            </div>
+                        </div>
+                        <div class="bulk-actions hidden">
+                            <label>
+                                <input type="checkbox" id="selectAllCheckbox"> すべて選択
+                            </label>
+                            <button id="bulkUnsubscribeBtn" disabled><i class="fas fa-trash"></i> 選択したチャンネルを登録解除</button>
+                        </div>
+                        <div class="channel-grid"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div id="toast-notification" class="toast hidden"></div>
+    <script type="module">
+        // --- REAL BACKEND API CLIENT ---
+        // This client communicates with the Python Flask backend server.
+        const RealBackend = (() => {
+            const apiPrefix = '/api'; // The server's API base URL
+            const handleResponse = async (response) => {
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+                 // Handle cases where the response might be empty (e.g., DELETE requests)
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    return response.json();
+                }
+                return {}; // Return an empty object for non-json responses
+            };
+            return {
+                getAuthStatus: () => fetch(`${apiPrefix}/auth/status`).then(handleResponse),
+                getAllChannels: () => fetch(`${apiPrefix}/all-channels`).then(handleResponse),
+                analyzeChannel: (channel) => fetch(`${apiPrefix}/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channelId: channel.channelId }) }).then(handleResponse),
+                deleteSubscription: (subscriptionId) => fetch(`${apiPrefix}/subscriptions/${subscriptionId}`, { method: 'DELETE' }).then(handleResponse),
+                bulkDeleteSubscriptions: (subscriptionIds) => fetch(`${apiPrefix}/subscriptions/bulk-delete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionIds }) }).then(handleResponse)
+            };
+        })();
+
+        // --- APPLICATION LOGIC ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- STATE MANAGEMENT ---
+            let allChannels = [];
+            let currentFilter = 'all';
+            let inactivityThreshold = 60; // in days
+
+            // --- API CLIENT SELECTION ---
+            const apiClient = RealBackend;
+
+            // --- DOM ELEMENTS ---
+            const onboardingSection = document.getElementById('onboarding');
+            const resultsSection = document.getElementById('results');
+            const loginBtn = document.getElementById('loginBtn');
+            const loader = document.getElementById('loader');
+            const errorElement = document.getElementById('error');
+            const channelGrid = document.querySelector('.channel-grid');
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            const summaryCardContainer = document.getElementById('summary-card-container');
+            const actionsListContainer = document.getElementById('actions-list-container');
+            const refreshBtn = document.getElementById('refreshBtn');
+            const cacheStatusMessage = document.getElementById('cache-status-message');
+            const deepAnalysisControls = document.getElementById('deep-analysis-controls');
+            const startDeepAnalysisBtn = document.getElementById('startDeepAnalysisBtn');
+            const analysisProgressContainer = document.getElementById('analysis-progress-container');
+            const analysisProgressBar = document.getElementById('analysis-progress-bar');
+            const analysisProgressText = document.getElementById('analysis-progress-text');
+            const channelListContainer = document.getElementById('channel-list-container');
+            const thresholdSlider = document.getElementById('inactivity-threshold-slider');
+            const thresholdValue = document.getElementById('threshold-value');
+            const bulkActions = document.querySelector('.bulk-actions');
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            const bulkUnsubscribeBtn = document.getElementById('bulkUnsubscribeBtn');
+            const toast = document.getElementById('toast-notification');
+
+            // --- UTILITY FUNCTIONS ---
+            const showToast = (message) => {
+                toast.textContent = message;
+                toast.classList.remove('hidden');
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.classList.add('hidden'), 500);
+                }, 3000);
+            };
+
+            const pluralize = (count, singular, plural) => count === 1 ? singular : plural;
+
+            // --- LOCAL STORAGE & CACHING ---
+            const CACHE_KEY = 'youtubeAnalyzerCache';
+            const CACHE_EXPIRATION_MS = 6 * 60 * 60 * 1000; // 6 hours
+            const getCachedChannels = () => {
+                const cached = localStorage.getItem(CACHE_KEY);
+                if (!cached) return null;
+                const { timestamp, data } = JSON.parse(cached);
+                if (Date.now() - timestamp > CACHE_EXPIRATION_MS) {
+                    localStorage.removeItem(CACHE_KEY);
+                    return null;
+                }
+                cacheStatusMessage.textContent = `キャッシュデータを利用中 (最終更新: ${new Date(timestamp).toLocaleTimeString()})`;
+                return data;
+            };
+            const setCachedChannels = (data) => {
+                 const cache = { timestamp: Date.now(), data };
+                 localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+                 cacheStatusMessage.textContent = `キャッシュデータを利用中 (最終更新: ${new Date(cache.timestamp).toLocaleTimeString()})`;
+            };
+
+            // --- STATE PERSISTENCE ---
+            const saveUiState = () => {
+                 try {
+                    const state = {
+                        filter: currentFilter,
+                        threshold: inactivityThreshold,
+                        scrollPos: window.scrollY
+                    };
+                    localStorage.setItem('youtubeAnalyzerUiState', JSON.stringify(state));
+                 } catch (e) {
+                    console.warn("Failed to save UI state:", e);
+                 }
+            };
+
+            const loadUiState = () => {
+                try {
+                    const savedState = localStorage.getItem('youtubeAnalyzerUiState');
+                    if(savedState) {
+                        const { filter, threshold, scrollPos } = JSON.parse(savedState);
+
+                        // Restore filter
+                        currentFilter = filter || 'all';
+                        filterButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.filter === currentFilter));
+
+                        // Restore threshold
+                        inactivityThreshold = threshold || 60;
+                        thresholdSlider.value = inactivityThreshold;
+                        thresholdValue.textContent = `${inactivityThreshold} 日`;
+
+                        showToast("以前のセッションの状態を復元しました。");
+
+                        // Defer scroll restoration slightly
+                        setTimeout(() => window.scrollTo(0, scrollPos || 0), 100);
+                    }
+                } catch (e) {
+                    console.warn("Failed to load UI state:", e);
+                }
+            };
+
+            // --- RENDERING ---
+            const renderChannelCard = (channel) => {
+                const card = document.createElement('div');
+                card.className = 'channel-card';
+                card.dataset.channelId = channel.channelId;
+                card.classList.toggle('unsubscribed', !channel.isSubscribed);
+                card.classList.toggle('analyzing', channel.lastUploadDate === 'analyzing');
+
+                const isAnalyzed = channel.lastUploadDate && channel.lastUploadDate !== 'pending' && channel.lastUploadDate !== 'analyzing';
+                let lastUploadText = '<i class="fas fa-spinner fa-spin"></i> 分析中...';
+                let statusClass = 'analyzing-value';
+
+                if (channel.lastUploadDate === 'pending') {
+                    lastUploadText = '分析待ち';
+                    statusClass = 'pending-value';
+                } else if(isAnalyzed) {
+                    const uploadDate = new Date(channel.lastUploadDate);
+                    const daysSinceUpload = Math.floor((new Date() - uploadDate) / (1000 * 60 * 60 * 24));
+                    lastUploadText = `${daysSinceUpload} 日前`;
+                    statusClass = daysSinceUpload > inactivityThreshold ? 'inactive-value' : 'active-value';
+                }
+
+                card.innerHTML = `
+                    <input type="checkbox" class="channel-card-checkbox" ${!channel.isSubscribed ? 'disabled' : ''}>
+                    <div class="channel-card-header">
+                        <img src="${channel.thumbnailUrl}" alt="${channel.channelName} thumbnail" loading="lazy">
+                        <h4>${channel.channelName}</h4>
+                    </div>
+                    <ul class="channel-card-stats">
+                        <li>
+                            <span class="label">最終投稿:</span>
+                            <span class="value ${statusClass}">${lastUploadText}</span>
+                        </li>
+                    </ul>
+                    <div class="channel-card-actions">
+                        <button class="btn-check" onclick="window.open('https://www.youtube.com/channel/${channel.channelId}', '_blank')"><i class="fas fa-external-link-alt"></i> 確認</button>
+                        <button class="btn-unsubscribe" data-subscription-id="${channel.subscriptionId}" ${!channel.isSubscribed ? 'disabled' : ''}>
+                           ${channel.isSubscribed ? '<i class="fas fa-times"></i> 解除' : '<i class="fas fa-check"></i> 解除済み'}
+                        </button>
+                    </div>
+                `;
+                return card;
+            };
+
+            const renderChannels = (force = false) => {
+                const filteredChannels = allChannels.filter(c => {
+                    if (!c.channelId) return false;
+                    const isInactive = c.lastUploadDate && c.lastUploadDate !== 'pending' && c.lastUploadDate !== 'analyzing' &&
+                        Math.floor((new Date() - new Date(c.lastUploadDate)) / (1000 * 60 * 60 * 24)) > inactivityThreshold;
+
+                    switch (currentFilter) {
+                        case 'inactive': return isInactive && c.isSubscribed;
+                        case 'active': return !isInactive && c.isSubscribed && c.lastUploadDate !== 'pending' && c.lastUploadDate !== 'analyzing';
+                        case 'pending': return c.lastUploadDate === 'pending' && c.isSubscribed;
+                        case 'unsubscribed': return !c.isSubscribed;
+                        case 'all':
+                        default: return true;
+                    }
+                });
+
+                // Simple check to avoid re-rendering identical lists
+                const currentIds = Array.from(channelGrid.children).map(c => c.dataset.channelId).join(',');
+                const newIds = filteredChannels.map(c => c.channelId).join(',');
+                if(currentIds === newIds && !force) return;
+
+                channelGrid.innerHTML = ''; // Clear previous results
+                if (filteredChannels.length > 0) {
+                    filteredChannels.forEach(channel => {
+                        const card = renderChannelCard(channel);
+                        channelGrid.appendChild(card);
+                    });
+                } else {
+                    channelGrid.innerHTML = `<div class="no-results">この条件に一致するチャンネルはありません。</div>`;
+                }
+
+                updateBulkActionUI();
+            };
+
+            const updateDashboard = () => {
+                const total = allChannels.length;
+                const unsubscribed = allChannels.filter(c => !c.isSubscribed).length;
+                const subscribed = total - unsubscribed;
+                const analyzed = allChannels.filter(c => c.lastUploadDate && c.lastUploadDate !== 'pending' && c.lastUploadDate !== 'analyzing').length;
+                const inactive = allChannels.filter(c => {
+                    if (!c.isSubscribed || !c.lastUploadDate || c.lastUploadDate === 'pending' || c.lastUploadDate === 'analyzing') return false;
+                    const daysSinceUpload = Math.floor((new Date() - new Date(c.lastUploadDate)) / (1000 * 60 * 60 * 24));
+                    return daysSinceUpload > inactivityThreshold;
+                }).length;
+                const pending = allChannels.filter(c => c.lastUploadDate === 'pending').length;
+
+                // Summary Cards
+                summaryCardContainer.innerHTML = `
+                    <div class="summary-card">
+                        <span class="value">${subscribed}</span>
+                        <span class="label">登録中</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="value">${inactive}</span>
+                        <span class="label">活動休止中</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="value">${unsubscribed}</span>
+                        <span class="label">登録解除済み</span>
+                    </div>
+                     <div class="summary-card">
+                        <span class="value">${pending > 0 ? pending : '✓'}</span>
+                        <span class="label">分析待ち</span>
+                    </div>
+                `;
+
+                // Actions List
+                actionsListContainer.innerHTML = '';
+                if (inactive > 0) {
+                    actionsListContainer.innerHTML += `
+                        <li>
+                            <i class="fas fa-bed"></i>
+                            <span><b>${inactive}</b> ${pluralize(inactive, '件', '件')}の活動休止中のチャンネルがあります。</span>
+                        </li>`;
+                }
+                if (pending > 0) {
+                    actionsListContainer.innerHTML += `
+                        <li>
+                            <i class="fas fa-cogs"></i>
+                            <span><b>${pending}</b> ${pluralize(pending, '件', '件')}のチャンネルが分析待ちです。</span>
+                        </li>`;
+                }
+                if(actionsListContainer.innerHTML === '') {
+                    actionsListContainer.innerHTML = `<li><i class="fas fa-check-circle"></i><span>素晴らしい！すべて順調です。</span></li>`;
+                }
+            };
+
+            const updateBulkActionUI = () => {
+                const visibleCheckboxes = Array.from(channelGrid.querySelectorAll('.channel-card-checkbox:not(:disabled)'));
+                if (visibleCheckboxes.length > 0) {
+                    bulkActions.classList.remove('hidden');
+                    const checkedCount = visibleCheckboxes.filter(cb => cb.checked).length;
+                    bulkUnsubscribeBtn.disabled = checkedCount === 0;
+                    bulkUnsubscribeBtn.innerHTML = checkedCount > 0 ? `<i class="fas fa-trash"></i> 選択した ${checkedCount} 件を解除` : `<i class="fas fa-trash"></i> 選択したチャンネルを登録解除`;
+                    selectAllCheckbox.checked = visibleCheckboxes.length > 0 && checkedCount === visibleCheckboxes.length;
+                } else {
+                    bulkActions.classList.add('hidden');
+                }
+            };
+
+
+            // --- API INTERACTIONS ---
+            const handleUnsubscribe = async (subscriptionId, isBulk = false) => {
+                const channel = allChannels.find(c => c.subscriptionId === subscriptionId);
+                if (!channel) return;
+
+                try {
+                    await apiClient.deleteSubscription(subscriptionId);
+                    channel.isSubscribed = false;
+                    const card = channelGrid.querySelector(`[data-channel-id="${channel.channelId}"]`);
+                    if (card) {
+                       card.classList.add('unsubscribed');
+                       card.querySelector('.btn-unsubscribe').disabled = true;
+                       card.querySelector('.btn-unsubscribe').innerHTML = '<i class="fas fa-check"></i> 解除済み';
+                       card.querySelector('.channel-card-checkbox').disabled = true;
+                       card.querySelector('.channel-card-checkbox').checked = false;
+                    }
+                    if(!isBulk) showToast(`「${channel.channelName}」の登録を解除しました。`);
+                    updateDashboard();
+                    updateBulkActionUI();
+                } catch (error) {
+                    console.error('Unsubscribe failed:', error);
+                    if(!isBulk) alert(`解除に失敗しました: ${error.message}`);
+                    return false; // Indicate failure
+                }
+                return true; // Indicate success
+            };
+
+            const startAnalysis = async () => {
+                const channelsToAnalyze = allChannels.filter(c => c.lastUploadDate === 'pending' && c.isSubscribed);
+                if (channelsToAnalyze.length === 0) {
+                    showToast("分析が必要なチャンネルはありません。");
+                    deepAnalysisControls.classList.add('hidden');
+                    return;
+                }
+
+                startDeepAnalysisBtn.disabled = true;
+                analysisProgressContainer.classList.remove('hidden');
+
+                let completedCount = 0;
+                const totalToAnalyze = channelsToAnalyze.length;
+
+                const updateProgress = () => {
+                    const percentage = totalToAnalyze > 0 ? (completedCount / totalToAnalyze) * 100 : 100;
+                    analysisProgressBar.style.width = `${percentage}%`;
+                    analysisProgressText.textContent = `分析中... (${completedCount} / ${totalToAnalyze})`;
+                };
+
+                updateProgress();
+
+                for (const channel of channelsToAnalyze) {
+                    // Mark as analyzing in UI
+                    channel.lastUploadDate = 'analyzing';
+                    const card = channelGrid.querySelector(`[data-channel-id="${channel.channelId}"]`);
+                    if(card) {
+                        const valueEl = card.querySelector('.channel-card-stats .value');
+                        valueEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 分析中...';
+                        valueEl.className = 'value analyzing-value';
+                    }
+
+                    try {
+                        const result = await apiClient.analyzeChannel(channel);
+                        const targetChannel = allChannels.find(c => c.channelId === result.channelId);
+                        if (targetChannel) {
+                           targetChannel.lastUploadDate = result.lastUploadDate || new Date(0).toISOString(); // Handle null case
+                        }
+                    } catch (error) {
+                        console.error(`Failed to analyze ${channel.channelName}:`, error);
+                        const targetChannel = allChannels.find(c => c.channelId === channel.channelId);
+                        if (targetChannel) {
+                            targetChannel.lastUploadDate = new Date(0).toISOString(); // Mark as failed/very old
+                        }
+                    } finally {
+                        completedCount++;
+                        updateProgress();
+                        // Re-render the specific card after analysis
+                         const finalCard = channelGrid.querySelector(`[data-channel-id="${channel.channelId}"]`);
+                         const updatedChannel = allChannels.find(c => c.channelId === channel.channelId);
+                         if(finalCard && updatedChannel) {
+                            finalCard.replaceWith(renderChannelCard(updatedChannel));
+                         }
+                    }
+                }
+
+                analysisProgressText.textContent = '分析が完了しました！';
+                startDeepAnalysisBtn.disabled = false;
+                deepAnalysisControls.classList.add('hidden');
+                setCachedChannels(allChannels); // Cache the new analysis results
+                updateDashboard();
+                renderChannels(true); // Force re-render with new data
+            };
+
+            const initialize = async (forceRefresh = false) => {
+                onboardingSection.classList.add('hidden');
+                resultsSection.classList.remove('hidden');
+                loader.classList.remove('hidden');
+                channelGrid.innerHTML = ''; // Clear out old results
+
+                try {
+                    const cachedChannels = forceRefresh ? null : getCachedChannels();
+                    if (cachedChannels) {
+                        allChannels = cachedChannels;
+                    } else {
+                        allChannels = await apiClient.getAllChannels();
+                        setCachedChannels(allChannels);
+                    }
+
+                    if (allChannels.some(c => c.lastUploadDate === 'pending')) {
+                        deepAnalysisControls.classList.remove('hidden');
+                    } else {
+                        deepAnalysisControls.classList.add('hidden');
+                    }
+
+                    channelListContainer.classList.remove('hidden');
+                    loadUiState(); // Restore UI state after data is loaded
+                    updateDashboard();
+                    renderChannels();
+
+                } catch (error) {
+                    console.error('Initialization failed:', error);
+                    errorElement.textContent = `データの取得に失敗しました: ${error.message}`;
+                    resultsSection.classList.add('hidden');
+                    onboardingSection.classList.remove('hidden'); // Show login again
+                } finally {
+                    loader.classList.add('hidden');
+                }
+            };
+
+             const checkAuthStatus = async () => {
+                try {
+                    await apiClient.getAuthStatus();
+                    await initialize();
+                } catch (error) {
+                    // Not authenticated, show the login screen
+                    onboardingSection.classList.remove('hidden');
+                    resultsSection.classList.add('hidden');
+                    console.log("User not authenticated.");
+                }
+            };
+
+            // --- EVENT LISTENERS ---
+            filterButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    currentFilter = button.dataset.filter;
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    renderChannels();
+                    saveUiState();
+                });
+            });
+
+            thresholdSlider.addEventListener('input', (e) => {
+                inactivityThreshold = parseInt(e.target.value, 10);
+                thresholdValue.textContent = `${inactivityThreshold} 日`;
+            });
+
+            thresholdSlider.addEventListener('change', () => {
+                // Re-render only when slider is released for performance
+                updateDashboard();
+                renderChannels(true); // Force re-render as status might change
+                saveUiState();
+            });
+
+            startDeepAnalysisBtn.addEventListener('click', startAnalysis);
+            refreshBtn.addEventListener('click', () => {
+                if (confirm('すべてのチャンネル情報を再取得します。よろしいですか？（API消費量にご注意ください）')) {
+                    localStorage.removeItem(CACHE_KEY);
+                    localStorage.removeItem('youtubeAnalyzerUiState');
+                    initialize(true);
+                }
+            });
+
+            // Event delegation for unsubscribe buttons
+            channelGrid.addEventListener('click', (e) => {
+                const button = e.target.closest('.btn-unsubscribe');
+                if (button && !button.disabled) {
+                    const subscriptionId = button.dataset.subscriptionId;
+                    if (confirm(`本当にこのチャンネルの登録を解除しますか？`)) {
+                        handleUnsubscribe(subscriptionId);
+                    }
+                }
+            });
+
+            // Event delegation for checkboxes
+            channelGrid.addEventListener('click', (e) => {
+                if (e.target.classList.contains('channel-card-checkbox')) {
+                    updateBulkActionUI();
+                }
+            });
+
+            selectAllCheckbox.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                const visibleCheckboxes = channelGrid.querySelectorAll('.channel-card-checkbox:not(:disabled)');
+                visibleCheckboxes.forEach(cb => cb.checked = isChecked);
+                updateBulkActionUI();
+            });
+
+            bulkUnsubscribeBtn.addEventListener('click', async () => {
+                const checkedCheckboxes = Array.from(channelGrid.querySelectorAll('.channel-card-checkbox:checked'));
+                const subscriptionsToUnsubscribe = checkedCheckboxes.map(cb => {
+                     const card = cb.closest('.channel-card');
+                     const button = card.querySelector('.btn-unsubscribe');
+                     return button.dataset.subscriptionId;
+                });
+
+                if (subscriptionsToUnsubscribe.length === 0) return;
+
+                if (!confirm(`選択した ${subscriptionsToUnsubscribe.length} 件のチャンネルを本当に解除しますか？この操作は元に戻せません。`)) return;
+
+                // --- Option 1: Using the new bulk endpoint ---
+                bulkUnsubscribeBtn.disabled = true;
+                bulkUnsubscribeBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> 解除中...`;
+                try {
+                    const result = await apiClient.bulkDeleteSubscriptions(subscriptionsToUnsubscribe);
+                     // Reflect changes in the UI based on which channels were successfully unsubscribed.
+                     // The backend might not return which ones succeeded, so we assume all did for simplicity here.
+                     // A more robust implementation would have the backend return the list of successful IDs.
+                    subscriptionsToUnsubscribe.forEach(subId => {
+                        const channel = allChannels.find(c => c.subscriptionId === subId);
+                        if (channel) {
+                            channel.isSubscribed = false;
+                        }
+                    });
+                    showToast(`${subscriptionsToUnsubscribe.length}件のチャンネルを解除しました。`);
+                } catch (error) {
+                    console.error("Bulk unsubscribe failed:", error);
+                    alert(`一括解除に失敗しました: ${error.message}`);
+                } finally {
+                   renderChannels(true); // Full re-render to reflect all changes
+                   updateDashboard();
+                   updateBulkActionUI();
+                }
+            });
+
+            // Save state on page unload
+            window.addEventListener('beforeunload', saveUiState);
+
+            // --- INITIALIZATION ---
+            checkAuthStatus();
+        });
+    </script>
+</body>
+</html>
