@@ -4,26 +4,36 @@ import googleapiclient.discovery
 import googleapiclient.errors
 from flask import Flask, redirect, request, session, url_for, jsonify, send_from_directory
 from dotenv import load_dotenv
+from werkzeug.middleware.proxy_fix import ProxyFix # 追加: 本番環境でのHTTPS対応用
 
 # .envファイルから環境変数を読み込む
 load_dotenv()
 
 # --- アプリケーション設定 ---
-# static_folder='.' は、index.htmlと同じ階層にapp.pyを置くことを想定しています。
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
-# 開発環境でのHTTP通信を許可（本番環境ではHTTPSを使用してください）
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+# 【修正点1】Renderなどの本番環境では、プロキシ経由であることをアプリに教える必要があります
+# これにより、url_forが自動的に 'https://' のURLを生成するようになります。
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# 【修正点2】Googleが余分なスコープ(email等)を返してきてもエラーにしない設定
+os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
+
+# 【修正点3】ローカル開発環境以外（Render上など）ではHTTPSを強制するため、
+# OAUTHLIB_INSECURE_TRANSPORT は削除するか、ローカル判定を入れるのがベターです。
+# Render上ではこの行はコメントアウトするか削除してください。
+# os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1" 
 
 # --- Google API 設定 ---
 API_SERVICE_NAME = "youtube"
 API_VERSION = "v3"
-# 以前のエラーを修正するため、readonlyスコープも許可します。
+
 SCOPES = [
     "https://www.googleapis.com/auth/youtube",
     "https://www.googleapis.com/auth/youtube.readonly"
 ]
-# .envファイルから読み込んだ情報でクライアント設定を構築
+
 CLIENT_SECRETS_FILE = {
     "web": {
         "client_id": os.getenv("GOOGLE_CLIENT_ID"),
@@ -31,8 +41,11 @@ CLIENT_SECRETS_FILE = {
         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
         "token_uri": "https://oauth2.googleapis.com/token",
         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        # このリダイレクトURIはGoogle Cloud Consoleにも必ず登録してください
-        "redirect_uris": ["http://127.0.0.1:5000/auth/callback"]
+        # 注: ここは app.route('/auth/google') 内で動的に生成されるため、辞書内では重要ではありませんが、
+        # Google Cloud Console の「承認済みのリダイレクト URI」には
+        # https://<あなたのRenderアプリ名>.onrender.com/auth/callback
+        # を登録しておく必要があります。
+        "redirect_uris": ["http://127.0.0.1:5000/auth/callback"] 
     }
 }
 
@@ -41,9 +54,7 @@ def build_youtube_service():
     """セッション情報からYouTube APIサービスを構築する"""
     if 'credentials' not in session:
         return None
-    # セッションから復元するために google.oauth2.credentials をインポート
     from google.oauth2.credentials import Credentials
-    # 辞書形式で保存した認証情報をCredentialsオブジェクトに戻す
     credentials = Credentials(**session['credentials'])
     return googleapiclient.discovery.build(
         API_SERVICE_NAME, API_VERSION, credentials=credentials)
@@ -51,7 +62,6 @@ def build_youtube_service():
 # --- フロントエンド提供ルート ---
 @app.route('/')
 def index():
-    """index.htmlを提供する"""
     return send_from_directory('.', 'index.html')
 
 # --- 認証ルート ---
@@ -60,11 +70,16 @@ def auth_google():
     """Googleへの認証を開始する"""
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
         CLIENT_SECRETS_FILE, scopes=SCOPES)
-    # サーバー上のコールバックURLを動的に生成
+    
+    # 【重要】_external=Trueにより、現在のスキーム(https)に合わせた絶対URLが生成されます
     flow.redirect_uri = url_for('auth_callback', _external=True)
+    
     authorization_url, state = flow.authorization_url(
-        access_type='offline', include_granted_scopes='true')
-    # CSRF対策のためにstateをセッションに保存
+        access_type='offline',
+        include_granted_scopes='true',
+        # 強制的に承認画面を出したい場合は以下を有効化
+        # prompt='consent' 
+    )
     session['state'] = state
     return redirect(authorization_url)
 
@@ -74,13 +89,19 @@ def auth_callback():
     state = session['state']
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
         CLIENT_SECRETS_FILE, scopes=SCOPES, state=state)
+    
+    # ここでも同じRedirect URIを指定する必要があります
     flow.redirect_uri = url_for('auth_callback', _external=True)
 
+    # httpsへの強制変換（念の為の安全策）
+    # Render等の背後では request.url が http で来ることがあるため、httpsに置換
     authorization_response = request.url
+    if authorization_response.startswith('http:'):
+        authorization_response = authorization_response.replace('http:', 'https:', 1)
+
     flow.fetch_token(authorization_response=authorization_response)
 
     credentials = flow.credentials
-    # セッションに保存できる辞書形式に変換
     session['credentials'] = {
         'token': credentials.token,
         'refresh_token': credentials.refresh_token,
@@ -89,20 +110,18 @@ def auth_callback():
         'client_secret': credentials.client_secret,
         'scopes': credentials.scopes
     }
-    # 認証完了後、トップページにリダイレクト
     return redirect(url_for('index'))
 
 @app.route('/api/auth/status')
 def auth_status():
-    """ログイン状態を確認する"""
     if 'credentials' in session:
         return jsonify({"status": "authenticated"})
     return jsonify({"error": "Not authenticated"}), 401
 
-# --- APIエンドポイント ---
+# --- APIエンドポイント (変更なし) ---
 @app.route('/api/all-channels')
 def get_all_channels():
-    """全ての登録チャンネルを取得する"""
+    # ... (元のコードのまま)
     youtube = build_youtube_service()
     if not youtube:
         return jsonify({"error": "Not authenticated"}), 401
@@ -110,12 +129,11 @@ def get_all_channels():
     all_subscriptions = []
     next_page_token = None
     try:
-        # nextPageTokenがなくなるまで繰り返し取得
         while True:
             request = youtube.subscriptions().list(
                 part="snippet",
                 mine=True,
-                maxResults=50, # 一度に取得できる最大数
+                maxResults=50,
                 pageToken=next_page_token
             )
             response = request.execute()
@@ -126,13 +144,13 @@ def get_all_channels():
                     "channelId": item["snippet"]["resourceId"]["channelId"],
                     "channelName": item["snippet"]["title"],
                     "thumbnailUrl": item["snippet"]["thumbnails"]["default"]["url"],
-                    "lastUploadDate": "pending", # フロントエンドで分析待ち状態を示す
+                    "lastUploadDate": "pending",
                     "isSubscribed": True,
                 })
 
             next_page_token = response.get("nextPageToken")
             if not next_page_token:
-                break # 次のページがなければループを抜ける
+                break
         return jsonify(all_subscriptions)
 
     except googleapiclient.errors.HttpError as e:
@@ -140,7 +158,7 @@ def get_all_channels():
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_channel():
-    """チャンネルの最終投稿日を分析する"""
+    # ... (元のコードのまま)
     youtube = build_youtube_service()
     if not youtube:
         return jsonify({"error": "Not authenticated"}), 401
@@ -151,19 +169,16 @@ def analyze_channel():
         return jsonify({"message": "channelId is required"}), 400
 
     try:
-        # 1. チャンネル情報からuploadsプレイリストIDを取得
         channel_request = youtube.channels().list(
             part="contentDetails",
             id=channel_id
         )
         channel_response = channel_request.execute()
-        # チャンネルが存在しない、または非公開の場合
         if not channel_response.get("items"):
             return jsonify({"channelId": channel_id, "lastUploadDate": None})
 
         uploads_playlist_id = channel_response["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
 
-        # 2. プレイリストから最新の動画を1件取得
         playlist_request = youtube.playlistItems().list(
             part="snippet",
             playlistId=uploads_playlist_id,
@@ -172,7 +187,6 @@ def analyze_channel():
         playlist_response = playlist_request.execute()
 
         last_upload_date = None
-        # プレイリストに動画があれば投稿日を取得
         if playlist_response.get("items"):
             last_upload_date = playlist_response["items"][0]["snippet"]["publishedAt"]
 
@@ -181,15 +195,14 @@ def analyze_channel():
             "lastUploadDate": last_upload_date
         })
     except Exception as e:
-        # その他の理由で分析に失敗した場合（権限がないなど）
         return jsonify({
             "channelId": channel_id,
-            "lastUploadDate": None # 失敗した場合はnullを返す
+            "lastUploadDate": None
         })
 
 @app.route('/api/subscriptions/<subscription_id>', methods=['DELETE'])
 def delete_subscription(subscription_id):
-    """チャンネル登録を解除する"""
+    # ... (元のコードのまま)
     youtube = build_youtube_service()
     if not youtube:
         return jsonify({"error": "Not authenticated"}), 401
@@ -201,7 +214,7 @@ def delete_subscription(subscription_id):
 
 @app.route('/api/subscriptions/bulk-delete', methods=['POST'])
 def bulk_delete_subscriptions():
-    """複数のチャンネル登録を一括解除する"""
+    # ... (元のコードのまま)
     youtube = build_youtube_service()
     if not youtube:
         return jsonify({"error": "Not authenticated"}), 401
@@ -223,7 +236,5 @@ def bulk_delete_subscriptions():
 
     return jsonify({"successCount": success_count, "failCount": fail_count})
 
-# --- サーバー起動 ---
 if __name__ == '__main__':
-    # debug=True にすると、コードの変更時にサーバーが自動で再起動します
     app.run(debug=True, port=5000)
