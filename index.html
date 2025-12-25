@@ -43,7 +43,7 @@
             text-align: center;
         }
 
-        /* --- Branding Guideline Compliant Button [cite: 25, 36] --- */
+        /* --- Branding Guideline Compliant Button --- */
         .g-sign-in-button {
             display: inline-flex;
             align-items: center;
@@ -67,10 +67,9 @@
 
         .loader { border: 4px solid var(--border-color); border-top: 4px solid var(--button-blue-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 2rem auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .error-message { color: var(--error-color); margin-top: 1rem; }
         .hidden { display: none !important; }
 
-        /* --- Privacy Footer [cite: 11, 13, 22] --- */
+        /* --- Privacy Footer (Policy V.3 対応済) --- */
         footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--secondary-text-color); font-size: 0.85rem; }
         .policy-container { max-width: 850px; margin: 0 auto; text-align: left; background-color: rgba(255, 255, 255, 0.03); padding: 2rem; border-radius: 8px; }
         .policy-container h5 { color: var(--primary-text-color); margin-bottom: 1rem; border-left: 4px solid var(--button-blue-color); padding-left: 0.5rem; }
@@ -89,7 +88,7 @@
         <main>
             <section id="onboarding">
                 <h2>アカウントを連携して分析を開始</h2>
-                <p>「Googleでサインイン」をクリックして許可してください。</p>
+                <p>「Google でサインイン」をクリックして許可してください。</p>
                 <a id="loginBtn" class="g-sign-in-button" href="/auth/google">
                     <div class="g-logo-wrapper">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" viewBox="0 0 48 48">
@@ -102,7 +101,8 @@
             </section>
 
             <section id="results" class="hidden">
-                <h2>分析結果</h2>
+                <h2>分析完了</h2>
+                <div id="status-message" style="margin: 1.5rem 0;">チャンネル登録情報を取得しました。</div>
                 <div id="channel-list"></div>
                 <button onclick="logout()" style="margin-top: 2rem; background: none; border: 1px solid var(--border-color); color: var(--secondary-text-color); padding: 0.5rem 1rem; cursor: pointer;">ログアウト</button>
             </section>
@@ -112,10 +112,11 @@
             <div class="policy-container">
                 <h5>プライバシーポリシーおよび利用規約</h5>
                 <ul>
-                    <li><strong>YouTube API Servicesの利用:</strong> 本アプリはYouTube API Servicesを利用しています。利用者は<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に同意したものとみなされます。</li>
-                    <li><strong>データの収集と保存:</strong> 利便性向上のため、ブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージを使用して設定やキャッシュデータを保存します。</li>
-                    <li><strong>データの更新と削除:</strong> APIデータは6時間ごとに自動更新され、ログアウト時にデバイスから削除されます。</li>
+                    <li><strong>YouTube API Servicesの利用:</strong> 本アプリはYouTube API Servicesを利用して登録チャンネル情報を取得・分析しています 。利用者は<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に同意したものとみなされます。</li>
+                    <li><strong>データの収集と保存 (Cookie等の利用):</strong> 利便性向上のため、ブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージ（localStorage）を使用して、キャッシュデータや設定を保存・アクセスします 。</li>
+                    <li><strong>データの更新と削除:</strong> APIデータは6時間ごとに自動更新され、ログアウト時にデバイスから完全に削除されます 。</li>
                     <li><strong>Googleの規約:</strong> <a href="http://www.google.com/policies/privacy" target="_blank">Googleプライバシーポリシー</a>をご確認ください。</li>
+                    <li><strong>アクセスの取り消し:</strong> 本サービスへのアクセス許可は、いつでも<a href="https://myaccount.google.com/permissions" target="_blank">Google セキュリティ設定ページ</a>から取り消し可能です 。</li>
                 </ul>
             </div>
         </footer>
@@ -127,16 +128,20 @@
             const results = document.getElementById('results');
             const loader = document.getElementById('loader');
 
-            // 1. ログイン状態の確認
-            // サーバー側でセッションが確立されているか、
-            // あるいはURLパラメータなどで成功した証拠を受け取っているか確認します。
+            // ログイン状態の確認ロジックの修正
             const checkAuth = async () => {
                 try {
-                    // ここでサーバーの認証チェックAPI（例: /api/status）を叩くか、
-                    // サーバーがセットした特定のCookieの有無を確認します。
-                    const response = await fetch('/api/user-status'); 
-                    return response.ok; // ステータス200ならログイン済み
+                    // app.pyに実装されている正しいパス「/api/auth/status」を叩く 
+                    const response = await fetch('/api/auth/status'); 
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        // サーバーが認証済みステータスを返しているか確認 
+                        return data.status === 'authenticated';
+                    }
+                    return false;
                 } catch (e) {
+                    console.error("認証チェックに失敗しました:", e);
                     return false;
                 }
             };
@@ -153,16 +158,21 @@
                 onboarding.classList.remove('hidden');
                 results.classList.add('hidden');
             }
+
+            // ログインボタンクリック時にローダーを表示
+            document.getElementById('loginBtn').addEventListener('click', () => {
+                loader.classList.remove('hidden');
+            });
         });
 
         async function loadData() {
-            // ここでチャンネル情報を取得して描画するロジックを走らせる
-            console.log("分析データを取得中...");
+            console.log("分析データをロードしています...");
+            // ここで /api/all-channels などのデータを取得する処理を記述
         }
 
         window.logout = () => {
-            // ログアウト処理（サーバーのログアウトエンドポイントへ飛ばす）
-            window.location.href = '/auth/logout';
+            // トップページに戻る（セッション管理に合わせて適宜調整）
+            window.location.href = '/';
         };
     </script>
 </body>
