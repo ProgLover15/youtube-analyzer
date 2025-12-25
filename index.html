@@ -16,7 +16,6 @@
             --success-color: #4caf50;
             --error-color: #f44336;
             --button-blue-color: #3ea6ff;
-            --button-gray-color: #5a5a5a;
         }
 
         * {
@@ -27,7 +26,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-image: linear-gradient(to top, #121212, #1a1a1a);
+            background-color: var(--background-color);
             color: var(--primary-text-color);
             line-height: 1.6;
             padding: 2rem;
@@ -52,12 +51,12 @@
 
         header h1 {
             font-size: 2.5rem;
-            color: var(--primary-text-color);
             margin-bottom: 0.5rem;
         }
 
-        header h1 .fa-youtube {
-            color: var(--accent-color);
+        /* YouTubeロゴの指定はガイドライン違反となる可能性があるため削除し、テキストを強調 [cite: 25] */
+        .brand-text {
+            color: var(--primary-text-color);
         }
 
         header p {
@@ -70,16 +69,44 @@
             border-radius: 8px;
             padding: 2rem;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            text-align: center;
         }
 
-        /* --- New Privacy Footer Styles --- */
+        /* --- Googleログインボタンのデザイン修正 (ガイドライン準拠)  --- */
+        .g-sign-in-button {
+            display: inline-flex;
+            align-items: center;
+            background-color: #ffffff;
+            color: #757575;
+            padding: 0 12px 0 0;
+            border-radius: 2px;
+            box-shadow: 0 2px 4px 0 rgba(0,0,0,.25);
+            font-family: 'Roboto', arial, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: box-shadow .2s;
+            margin-top: 1.5rem;
+        }
+
+        .g-sign-in-button:hover {
+            box-shadow: 0 0 3px 3px rgba(66,133,244,.3);
+        }
+
+        .g-logo-wrapper {
+            padding: 12px;
+        }
+
+        .g-sign-in-button span {
+            padding: 12px 0;
+        }
+
         footer {
             margin-top: 4rem;
             padding-top: 2rem;
             border-top: 1px solid var(--border-color);
             color: var(--secondary-text-color);
             font-size: 0.85rem;
-            text-align: center;
         }
 
         .policy-container {
@@ -101,29 +128,19 @@
             text-decoration: none;
         }
 
-        .policy-container a:hover {
-            text-decoration: underline;
-        }
-
         .policy-container ul {
             margin-left: 1.5rem;
             margin-bottom: 1rem;
         }
 
-        /* Existing component styles... (omitted for brevity but kept in logic) */
         section { margin-bottom: 3rem; }
         .hidden { display: none; }
-        .button { display: inline-block; padding: 0.75rem 1.25rem; background-color: var(--accent-color); color: var(--primary-text-color); border-radius: 4px; font-weight: bold; cursor: pointer; text-decoration: none; }
-        #loginBtn { width: 100%; max-width: 400px; margin-top: 1rem; }
-        .loader { border: 4px solid var(--border-color); border-top: 4px solid var(--accent-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 2rem auto 0; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Add other styles as needed from original */
     </style>
 </head>
 <body>
     <div id="app">
         <header>
-            <h1><i class="fab fa-youtube"></i> YouTube 視聴習慣アナライザー</h1>
+            <h1><span class="brand-text">YouTube 視聴習慣アナライザー</span></h1>
             <p>視聴習慣を分析して、最適なチャンネル登録を見つけましょう。</p>
         </header>
 
@@ -131,17 +148,28 @@
             <section id="onboarding">
                 <h2>アカウントを連携して分析を開始</h2>
                 <p>
-                    「Googleでログイン」ボタンをクリックして、YouTubeアカウントのチャンネル登録情報の閲覧・編集を許可してください。<br>
+                    「Googleでサインイン」ボタンをクリックして、YouTubeアカウントの情報の閲覧・編集を許可してください。<br>
                     <strong>ログインすることで、以下のプライバシーポリシーおよびYouTube利用規約に同意したものとみなされます。</strong>
                 </p>
 
-                <a id="loginBtn" class="button" href="/auth/google"><i class="fab fa-google"></i> Googleでログインして分析を開始</a>
+                <a class="g-sign-in-button" href="/auth/google">
+                    <div class="g-logo-wrapper">
+                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" viewBox="0 0 48 48">
+                            <g>
+                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                                <path fill="none" d="M0 0h48v48H0z"></path>
+                            </g>
+                        </svg>
+                    </div>
+                    <span>Googleでサインイン</span>
+                </a>
+                
                 <div id="loader" class="loader hidden"></div>
                 <p id="error" class="error-message" role="alert"></p>
             </section>
-
-            <section id="results" class="hidden">
-                </section>
         </main>
 
         <footer>
@@ -150,8 +178,8 @@
                 <p>本アプリケーション（以下「当サービス」）の利用にあたり、以下の事項をご確認ください：</p>
                 <ul>
                     <li><strong>YouTube API Servicesの利用:</strong> 当サービスはYouTube API Servicesを利用して登録チャンネル情報を取得しています。利用者は当サービスを利用することで、<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に拘束されることに同意したものとみなされます。</li>
-                    <li><strong>データの収集と保存:</strong> 当サービスは、利便性向上のためにお客様のブラウザのローカルストレージ（localStorage）を使用して、登録チャンネルのキャッシュデータおよびUIの設定を保存します。</li>
-                    <li><strong>データの更新と削除:</strong> 取得したAPIデータは最新の状態を保つため<strong>6時間ごとに自動的に更新</strong>（再取得）されます。また、ログアウト時やブラウザのキャッシュをクリアすることで、これらのデータはデバイスから削除されます。</li>
+                    <li><strong>データの収集と保存:</strong> 当サービスは、利便性向上のため、お客様のブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージ（localStorage）を使用して、登録チャンネルのキャッシュデータやUI設定を保存・アクセスします 。</li>
+                    <li><strong>データの更新と削除:</strong> 取得したAPIデータは最新の状態を保つため6時間ごとに自動的に更新（再取得）されます。また、ログアウト時やブラウザのキャッシュをクリアすることで、これらのデータはデバイスから完全に削除されます。</li>
                     <li><strong>Googleの規約:</strong> Googleによるデータの取り扱いについては、<a href="http://www.google.com/policies/privacy" target="_blank">Googleプライバシーポリシー</a>をご確認ください。</li>
                     <li><strong>アクセスの取り消し:</strong> 当サービスへのアクセス許可は、いつでも<a href="https://security.google.com/settings/security/permissions" target="_blank">Google セキュリティ設定ページ</a>から取り消すことができます。</li>
                 </ul>
@@ -159,11 +187,5 @@
             </div>
         </footer>
     </div>
-
-    <script type="module">
-        // --- 既存のロジックを維持 ---
-        // (RealBackend, DOMContentLoaded, getCachedChannels などのスクリプトはそのまま使用)
-        // ... (省略)
-    </script>
 </body>
 </html>
