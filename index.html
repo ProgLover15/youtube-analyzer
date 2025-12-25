@@ -22,7 +22,6 @@
             background-color: var(--background-color);
             background-image: linear-gradient(to top, #121212, #1a1a1a);
             color: var(--primary-text-color);
-            line-height: 1.6;
             padding: 2rem;
             display: flex;
             flex-direction: column;
@@ -30,13 +29,37 @@
         }
         #app { max-width: 1200px; margin: 0 auto; flex: 1; width: 100%; }
         header { text-align: center; margin-bottom: 3rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; }
-        main { background-color: var(--surface-color); border-radius: 8px; padding: 3rem 2rem; text-align: center; }
-        .g-sign-in-button { display: inline-flex; align-items: center; background-color: #ffffff; color: #757575; padding: 0 12px 0 0; border-radius: 2px; text-decoration: none; margin: 2rem auto; cursor: pointer; border: none; font-weight: 500; }
+        main {
+            background-color: var(--surface-color);
+            border-radius: 8px;
+            padding: 3rem 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+        .g-sign-in-button {
+            display: inline-flex;
+            align-items: center;
+            background-color: #ffffff;
+            color: #757575;
+            padding: 0 12px 0 0;
+            border-radius: 2px;
+            box-shadow: 0 2px 4px 0 rgba(0,0,0,.25);
+            font-family: 'Roboto', arial, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            margin: 2rem auto;
+            cursor: pointer;
+            border: none;
+        }
         .g-logo-wrapper { padding: 12px; display: flex; align-items: center; }
         .hidden { display: none !important; }
-        /* リスト表示用スタイル */
+
+        /* リスト表示スタイル */
         .channel-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color); text-align: left; }
-        .channel-icon { width: 40px; height: 40px; border-radius: 50%; margin-right: 15px; }
+        .channel-icon { width: 44px; height: 44px; border-radius: 50%; margin-right: 15px; background: #333; }
+        .channel-info { flex-grow: 1; }
+        .last-post { color: var(--secondary-text-color); font-size: 0.85rem; }
     </style>
 </head>
 <body>
@@ -45,6 +68,7 @@
             <h1>視聴習慣アナライザー for YouTube</h1>
             <p>視聴習慣を分析して、最適なチャンネル登録を見つけましょう。</p>
         </header>
+
         <main>
             <section id="onboarding">
                 <h2>アカウントを連携して分析を開始</h2>
@@ -57,14 +81,16 @@
                     <span>Google でサインイン</span>
                 </a>
             </section>
+
             <section id="results" class="hidden">
-                <h2>分析結果</h2>
-                <div id="channel-list"></div>
+                <h2>分析完了</h2>
+                <div id="channel-list" style="margin-top: 20px;"></div>
                 <button onclick="logout()" style="margin-top: 2rem; background: none; border: 1px solid var(--border-color); color: var(--secondary-text-color); padding: 0.5rem 1rem; cursor: pointer;">ログアウト</button>
             </section>
         </main>
-        <footer style="margin-top:2rem; font-size:0.8rem; color:var(--secondary-text-color);">
-            <p>※利便性向上のためCookieを使用します。詳細はGoogleのプライバシーポリシーをご確認ください。</p>
+        
+        <footer style="margin-top: 2rem; font-size: 0.8rem; color: var(--secondary-text-color); text-align: center;">
+            <p>※YouTube API Servicesを利用しています。利便性向上のためCookieを使用します。</p>
         </footer>
     </div>
 
@@ -73,7 +99,7 @@
             const onboarding = document.getElementById('onboarding');
             const results = document.getElementById('results');
 
-            // ログイン状態確認（宛先を /api/auth/status に修正）
+            // ログイン状態確認（app.pyの正しいエンドポイント）
             const checkAuth = async () => {
                 try {
                     const response = await fetch('/api/auth/status');
@@ -92,22 +118,45 @@
             }
         });
 
-        // データ取得処理（中身を実装）
         async function loadData() {
             const list = document.getElementById('channel-list');
-            list.innerHTML = '読み込み中...';
+            list.innerHTML = 'チャンネルリストを取得中...';
             try {
+                // app.py の get_all_channels を呼び出す
                 const response = await fetch('/api/all-channels');
                 const channels = await response.json();
-                list.innerHTML = '';
+                list.innerHTML = ''; 
+
                 channels.forEach(ch => {
                     const div = document.createElement('div');
                     div.className = 'channel-item';
-                    div.innerHTML = `<img src="${ch.thumbnailUrl}" class="channel-icon"><span>${ch.channelName}</span>`;
+                    div.innerHTML = `
+                        <img src="${ch.thumbnailUrl}" class="channel-icon">
+                        <div class="channel-info">
+                            <div>${ch.channelName}</div>
+                            <div class="last-post" id="date-${ch.channelId}">解析中...</div>
+                        </div>
+                    `;
                     list.appendChild(div);
+
+                    // 各チャンネルの最終投稿日を個別に解析 (app.py の analyze_channel)
+                    fetch('/api/analyze', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ channelId: ch.channelId })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        const dateEl = document.getElementById(`date-${ch.channelId}`);
+                        if (data.lastUploadDate) {
+                            dateEl.innerText = '最終更新: ' + new Date(data.lastUploadDate).toLocaleDateString();
+                        } else {
+                            dateEl.innerText = '最終更新: 投稿なし';
+                        }
+                    });
                 });
             } catch (e) {
-                list.innerHTML = 'データの取得に失敗しました。';
+                list.innerHTML = 'データの取得に失敗しました。再読み込みしてください。';
             }
         }
 
