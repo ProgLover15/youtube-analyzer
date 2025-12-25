@@ -13,141 +13,124 @@
             --button-blue-color: #3ea6ff; --error-color: #f44336;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: sans-serif; background: var(--background-color);
-            color: var(--primary-text-color); padding: 2rem;
-        }
-        #app { max-width: 1200px; margin: 0 auto; }
-        header { text-align: center; margin-bottom: 3rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
-        header h1 .fa-youtube { color: var(--accent-color); }
-        main { background: var(--surface-color); border-radius: 8px; padding: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        body { font-family: sans-serif; background: var(--background-color); color: var(--primary-text-color); padding: 2rem; }
+        header { text-align: center; margin-bottom: 2rem; }
+        header h1 i { color: var(--accent-color); margin-right: 10px; }
+        main { max-width: 1000px; margin: 0 auto; background: var(--surface-color); padding: 2rem; border-radius: 12px; }
         .hidden { display: none; }
-        .button {
-            display: inline-block; padding: 0.75rem 1.25rem; background: var(--accent-color);
-            color: #fff; border-radius: 4px; font-weight: bold; text-decoration: none; cursor: pointer;
-        }
-        .channel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
-        .channel-card { background: var(--background-color); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); }
-        .channel-card.unsubscribed { opacity: 0.5; }
-        .channel-card img { width: 50px; height: 50px; border-radius: 50%; margin-right: 1rem; }
-        .channel-card-header { display: flex; align-items: center; margin-bottom: 1rem; }
-        .progress-bar-container { background: #333; height: 20px; border-radius: 10px; overflow: hidden; margin: 1rem 0; }
-        .progress-bar { background: var(--button-blue-color); width: 0%; height: 100%; transition: width 0.3s; }
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 24px; border-radius: 8px; opacity: 0; transition: 0.5s; }
-        .toast.show { opacity: 1; bottom: 30px; }
-        .btn-unsubscribe { background: var(--error-color); color: #fff; border: none; padding: 0.5rem; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 0.5rem; }
+        
+        /* Analysis Control */
+        .analysis-box { background: #121212; padding: 2rem; border-radius: 8px; margin-bottom: 2rem; text-align: center; }
+        .btn-main { background: var(--button-blue-color); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        
+        /* Grid */
+        .channel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; }
+        .card { background: #121212; border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; text-align: center; }
+        .card img { width: 60px; height: 60px; border-radius: 50%; margin-bottom: 0.5rem; }
+        .card h4 { font-size: 0.9rem; margin-bottom: 0.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card p { font-size: 0.75rem; color: var(--secondary-text-color); margin-bottom: 1rem; }
+        .btn-unsub { background: var(--error-color); color: white; border: none; width: 100%; padding: 8px; border-radius: 4px; cursor: pointer; }
+        .btn-unsub:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Progress */
+        .progress-container { margin-top: 1rem; background: #333; height: 8px; border-radius: 4px; overflow: hidden; }
+        .progress-bar { background: var(--button-blue-color); height: 100%; width: 0%; transition: width 0.3s; }
     </style>
 </head>
 <body>
-    <div id="app">
-        <header>
-            <h1><i class="fab fa-youtube"></i> YouTube 視聴習慣アナライザー</h1>
-            <p>不要な登録チャンネルを整理しましょう</p>
-        </header>
-        <main>
-            <section id="onboarding">
-                <div style="text-align:center">
-                    <h2>連携して分析を開始</h2>
-                    <p style="margin: 1rem 0 2rem; color: var(--secondary-text-color);">登録チャンネルの情報を取得します。</p>
-                    <a id="loginBtn" class="button" href="/auth/google"><i class="fab fa-google"></i> Googleでログイン</a>
-                </div>
-            </section>
+    <header>
+        <h1><i class="fab fa-youtube"></i>YouTube 視聴習慣アナライザー</h1>
+        <p>不要な登録チャンネルを整理しましょう</p>
+    </header>
 
-            <section id="results" class="hidden">
-                <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                    <h2>分析結果</h2>
-                    <a href="/auth/logout" style="color: var(--secondary-text-color)">ログアウト</a>
-                </div>
-                
-                <div id="deep-analysis-controls" style="background:#121212; padding: 1.5rem; border-radius: 8px; text-align: center;">
-                    <p>チャンネルの活動状況（最終投稿日）を分析します。</p>
-                    <button id="startDeepAnalysisBtn" class="button" style="background: var(--button-blue-color); margin-top: 1rem;">分析を開始</button>
-                    <div id="analysis-progress-container" class="hidden">
-                        <div class="progress-bar-container"><div id="analysis-progress-bar" class="progress-bar"></div></div>
-                        <p id="analysis-progress-text">0 / 0</p>
-                    </div>
-                </div>
+    <main>
+        <div id="onboarding" class="hidden" style="text-align: center;">
+            <a href="/auth/google" class="btn-main" style="background: white; color: #757575;">Googleでサインイン</a>
+        </div>
 
-                <div class="channel-grid"></div>
-            </section>
-        </main>
-    </div>
-    <div id="toast-notification" class="toast"></div>
+        <div id="results" class="hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>分析結果</h3>
+                <a href="/auth/logout" style="color: var(--secondary-text-color); text-decoration: none; font-size: 0.8rem;">ログアウト</a>
+            </div>
 
-    <script type="module">
-        const RealBackend = {
-            getAuthStatus: () => fetch('/api/auth/status').then(r => r.json()),
-            getAllChannels: () => fetch('/api/all-channels').then(r => r.json()),
-            analyzeChannel: (channelId) => fetch('/api/analyze', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ channelId })
-            }).then(r => r.json()),
-            deleteSubscription: (subId) => fetch(`/api/subscriptions/${subId}`, { method: 'DELETE' }).then(r => r.json())
+            <div class="analysis-box">
+                <p>チャンネルの活動状況（最終投稿日）を分析します。</p>
+                <button id="startBtn" class="btn-main" style="margin-top: 1rem;">分析を開始</button>
+                <div id="prog-root" class="hidden">
+                    <div class="progress-container"><div id="prog-bar" class="progress-bar"></div></div>
+                    <p id="prog-text" style="margin-top: 5px; font-size: 0.8rem;">0 / 0</p>
+                </div>
+            </div>
+
+            <div id="channel-grid" class="channel-grid"></div>
+        </div>
+    </main>
+
+    <script>
+        let channels = [];
+
+        async function init() {
+            const res = await fetch('/api/auth/status');
+            const data = await res.json();
+            if (data.status === 'authenticated') {
+                document.getElementById('results').classList.remove('hidden');
+                loadChannels();
+            } else {
+                document.getElementById('onboarding').classList.remove('hidden');
+            }
+        }
+
+        async function loadChannels() {
+            const res = await fetch('/api/all-channels');
+            channels = await res.json();
+            render();
+        }
+
+        function render() {
+            const grid = document.getElementById('channel-grid');
+            grid.innerHTML = channels.map(ch => `
+                <div class="card" id="card-${ch.subscriptionId}">
+                    <img src="${ch.thumbnailUrl}">
+                    <h4>${ch.channelName}</h4>
+                    <p>最終投稿: ${ch.lastUploadDate === 'pending' ? '未分析' : (ch.lastUploadDate ? new Date(ch.lastUploadDate).toLocaleDateString() : 'なし')}</p>
+                    <button class="btn-unsub" onclick="unsub('${ch.subscriptionId}')" ${!ch.isSubscribed ? 'disabled' : ''}>
+                        ${ch.isSubscribed ? '登録解除' : '解除済み'}
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('startBtn').onclick = async () => {
+            document.getElementById('startBtn').classList.add('hidden');
+            document.getElementById('prog-root').classList.remove('hidden');
+            let count = 0;
+            for (let ch of channels) {
+                const res = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({channelId: ch.channelId})
+                });
+                const data = await res.json();
+                ch.lastUploadDate = data.lastUploadDate;
+                count++;
+                document.getElementById('prog-bar').style.width = (count / channels.length * 100) + '%';
+                document.getElementById('prog-text').innerText = `${count} / ${channels.length}`;
+                render(); // 逐次更新
+            }
         };
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            let allChannels = [];
-            const resultsSection = document.getElementById('results');
-            const onboardingSection = document.getElementById('onboarding');
-            const channelGrid = document.querySelector('.channel-grid');
-            const toast = document.getElementById('toast-notification');
-
-            const showToast = (m) => { toast.textContent = m; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3000); };
-
-            // 認証確認
-            const auth = await RealBackend.getAuthStatus();
-            if (auth.status === "authenticated") {
-                onboardingSection.classList.add('hidden');
-                resultsSection.classList.remove('hidden');
-                allChannels = await RealBackend.getAllChannels();
-                renderChannels();
+        window.unsub = async (id) => {
+            if (!confirm('本当に解除しますか？')) return;
+            const res = await fetch(`/api/subscriptions/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                const ch = channels.find(c => c.subscriptionId === id);
+                ch.isSubscribed = false;
+                render();
             }
+        };
 
-            // 分析開始
-            document.getElementById('startDeepAnalysisBtn').onclick = async (e) => {
-                e.target.disabled = true;
-                document.getElementById('analysis-progress-container').classList.remove('hidden');
-                let count = 0;
-                for (const ch of allChannels) {
-                    const res = await RealBackend.analyzeChannel(ch.channelId);
-                    ch.lastUploadDate = res.lastUploadDate;
-                    count++;
-                    document.getElementById('analysis-progress-bar').style.width = `${(count/allChannels.length)*100}%`;
-                    document.getElementById('analysis-progress-text').textContent = `${count} / ${allChannels.length}`;
-                    renderChannels();
-                }
-                showToast("分析完了！");
-            };
-
-            // 削除処理
-            channelGrid.onclick = async (e) => {
-                const btn = e.target.closest('.btn-unsubscribe');
-                if (!btn || !confirm("解除しますか？")) return;
-                const subId = btn.dataset.subscriptionId;
-                await RealBackend.deleteSubscription(subId);
-                const ch = allChannels.find(c => c.subscriptionId === subId);
-                if (ch) ch.isSubscribed = false;
-                renderChannels();
-                showToast("解除しました");
-            };
-
-            function renderChannels() {
-                channelGrid.innerHTML = allChannels.map(ch => `
-                    <div class="channel-card ${!ch.isSubscribed ? 'unsubscribed' : ''}">
-                        <div class="channel-card-header">
-                            <img src="${ch.thumbnailUrl}">
-                            <h4 style="font-size:0.9rem">${ch.channelName}</h4>
-                        </div>
-                        <p style="font-size:0.8rem; color:var(--secondary-text-color)">
-                            最終投稿: ${ch.lastUploadDate === 'pending' ? '未分析' : (ch.lastUploadDate ? new Date(ch.lastUploadDate).toLocaleDateString() : 'なし')}
-                        </p>
-                        <button class="btn-unsubscribe" data-subscription-id="${ch.subscriptionId}" ${!ch.isSubscribed ? 'disabled' : ''}>
-                            ${ch.isSubscribed ? '登録解除' : '解除済み'}
-                        </button>
-                    </div>
-                `).join('');
-            }
-        });
+        init();
     </script>
 </body>
 </html>
