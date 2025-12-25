@@ -13,9 +13,8 @@
             --secondary-text-color: #aaaaaa;
             --accent-color: #ff0000;
             --border-color: #333333;
-            --success-color: #4caf50;
-            --error-color: #f44336;
             --button-blue-color: #3ea6ff;
+            --error-color: #f44336;
         }
 
         * {
@@ -26,6 +25,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background-color);
             background-image: linear-gradient(to top, #121212, #1a1a1a);
             color: var(--primary-text-color);
             line-height: 1.6;
@@ -63,12 +63,12 @@
         main {
             background-color: var(--surface-color);
             border-radius: 8px;
-            padding: 2rem;
+            padding: 3rem 2rem;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
             text-align: center;
         }
 
-        /* --- Googleログインボタン (ガイドライン準拠) --- */
+        /* --- Googleサインインボタン（ガイドライン準拠デザイン） --- */
         .g-sign-in-button {
             display: inline-flex;
             align-items: center;
@@ -83,7 +83,7 @@
             text-decoration: none;
             transition: box-shadow .2s;
             margin: 2rem auto;
-            max-width: 240px;
+            cursor: pointer;
         }
 
         .g-sign-in-button:hover {
@@ -92,50 +92,64 @@
 
         .g-logo-wrapper {
             padding: 12px;
+            display: flex;
+            align-items: center;
         }
 
-        /* --- UIコンポーネントのスタイル復活 --- */
-        section { margin-bottom: 3rem; }
-        .hidden { display: none; }
-        .error-message { color: var(--error-color); margin-top: 1rem; }
+        .g-sign-in-button span {
+            padding: 12px 0;
+        }
 
-        .loader { 
-            border: 4px solid var(--border-color); 
-            border-top: 4px solid var(--button-blue-color); 
-            border-radius: 50%; 
-            width: 40px; 
-            height: 40px; 
-            animation: spin 1s linear infinite; 
-            margin: 2rem auto; 
+        /* --- ローダーとエラーメッセージ --- */
+        .loader {
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--button-blue-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* --- フッターとポリシー --- */
+        .error-message { color: var(--error-color); margin-top: 1rem; }
+        .hidden { display: none; }
+
+        /* --- プライバシーポリシー（フッター） --- */
         footer {
             margin-top: 4rem;
             padding-top: 2rem;
             border-top: 1px solid var(--border-color);
             color: var(--secondary-text-color);
             font-size: 0.85rem;
-            text-align: center;
         }
 
         .policy-container {
-            max-width: 800px;
+            max-width: 850px;
             margin: 0 auto;
             text-align: left;
             background-color: rgba(255, 255, 255, 0.03);
-            padding: 1.5rem;
+            padding: 2rem;
             border-radius: 8px;
         }
 
         .policy-container h5 {
             color: var(--primary-text-color);
-            margin-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+            border-left: 4px solid var(--button-blue-color);
+            padding-left: 0.5rem;
         }
 
         .policy-container a { color: var(--button-blue-color); text-decoration: none; }
-        .policy-container ul { margin-left: 1.5rem; margin-bottom: 1rem; }
+        .policy-container a:hover { text-decoration: underline; }
+
+        .policy-container ul {
+            margin-left: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .policy-container li { margin-bottom: 0.5rem; }
     </style>
 </head>
 <body>
@@ -153,7 +167,7 @@
                     <strong>ログインすることで、以下のプライバシーポリシーおよびYouTube利用規約に同意したものとみなされます。</strong>
                 </p>
 
-                <a class="g-sign-in-button" href="/auth/google">
+                <a id="loginBtn" class="g-sign-in-button" href="/auth/google">
                     <div class="g-logo-wrapper">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" viewBox="0 0 48 48">
                             <g>
@@ -178,24 +192,27 @@
 
         <footer>
             <div class="policy-container">
-                <h5>プライバシーポリシーおよび利用規約</h5>
+                <h5>プライバシーポリシーおよび利用規約 / Privacy & Terms Information</h5>
                 <p>本アプリケーション（以下「当サービス」）の利用にあたり、以下の事項をご確認ください：</p>
                 <ul>
-                    <li><strong>YouTube API Servicesの利用:</strong> 当サービスはYouTube API Servicesを利用しています。利用者は当サービスを利用することで、<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に拘束されることに同意したものとみなされます。</li>
-                    <li><strong>データの収集と保存:</strong> 当サービスは、利便性向上のため、お客様のブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージ（localStorage）を使用して、設定やキャッシュデータを保存・アクセスします。</li>
-                    <li><strong>データの更新と削除:</strong> 取得したAPIデータは最新の状態を保つため6時間ごとに自動的に更新されます。また、ログアウト時にこれらのデータはデバイスから削除されます。</li>
-                    <li><strong>Googleの規約:</strong> <a href="http://www.google.com/policies/privacy" target="_blank">Googleプライバシーポリシー</a>をご確認ください。</li>
-                    <li><strong>アクセスの取り消し:</strong> <a href="https://security.google.com/settings/security/permissions" target="_blank">Google セキュリティ設定ページ</a>からいつでも取り消し可能です。</li>
+                    <li><strong>YouTube API Servicesの利用:</strong> 当サービスはYouTube API Servicesを利用して登録チャンネル情報を取得・分析しています。利用者は当サービスを利用することで、<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に拘束されることに同意したものとみなされます [cite: 11]。</li>
+                    <li><strong>データの収集と保存（Cookie等の利用）:</strong> 利便性向上のため、お客様のブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージ（localStorage）を使用して、登録チャンネルのキャッシュデータや設定を保存・認識する場合があります 。</li>
+                    <li><strong>データの更新と削除:</strong> 取得したAPIデータは最新の状態を保つため<strong>6時間ごとに自動的に更新</strong>（再取得）されます。ログアウト時やブラウザのキャッシュ消去により、これらのデータはデバイスから完全に削除されます [cite: 15]。</li>
+                    <li><strong>Googleの規約:</strong> Googleによるデータの取り扱いについては、<a href="http://www.google.com/policies/privacy" target="_blank">Googleプライバシーポリシー</a>をご確認ください。</li>
+                    <li><strong>アクセスの取り消し:</strong> 当サービスへのアクセス許可は、いつでも<a href="https://security.google.com/settings/security/permissions" target="_blank">Google セキュリティ設定ページ</a>から取り消すことができます。</li>
                 </ul>
-                <p style="text-align: center; font-size: 0.75rem;">&copy; 2025 個人開発者 - Compliance Version</p>
+                <p style="text-align: center; font-size: 0.75rem; margin-top: 1rem;">&copy; 2025 個人開発者 - Compliance Version</p>
             </div>
         </footer>
     </div>
 
     <script type="module">
-        // --- ここに元のロジックを貼り付けてください ---
-        // 例: document.getElementById('loginBtn').addEventListener...
-        // 分析中には #loader の hidden クラスを外す処理が必要です。
+        /**
+         * ここに元のJavaScriptロジック（RealBackendなど）を貼り付けてください。
+         * * 注意：
+         * ボタンのクリックイベントを設定している箇所（例：document.getElementById('loginBtn').addEventListener...）
+         * があることを確認してください。IDが一致していればサインインが正常に動作します。
+         */
     </script>
 </body>
 </html>
