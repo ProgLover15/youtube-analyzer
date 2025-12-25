@@ -69,7 +69,13 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .hidden { display: none !important; }
 
-        /* --- Privacy Footer (Policy V.3 対応済) --- */
+        /* リスト表示用スタイル */
+        table { width: 100%; border-collapse: collapse; margin-top: 2rem; text-align: left; }
+        th { border-bottom: 2px solid var(--border-color); padding: 12px; color: var(--secondary-text-color); }
+        td { border-bottom: 1px solid var(--border-color); padding: 12px; vertical-align: middle; }
+        .channel-icon { width: 44px; height: 44px; border-radius: 50%; background: #333; }
+
+        /* --- Privacy Footer --- */
         footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--secondary-text-color); font-size: 0.85rem; }
         .policy-container { max-width: 850px; margin: 0 auto; text-align: left; background-color: rgba(255, 255, 255, 0.03); padding: 2rem; border-radius: 8px; }
         .policy-container h5 { color: var(--primary-text-color); margin-bottom: 1rem; border-left: 4px solid var(--button-blue-color); padding-left: 0.5rem; }
@@ -97,13 +103,25 @@
                     </div>
                     <span>Google でサインイン</span>
                 </a>
-                <div id="loader" class="loader hidden"></div>
+                <div id="onboarding-loader" class="loader hidden"></div>
             </section>
 
             <section id="results" class="hidden">
                 <h2>分析完了</h2>
-                <div id="status-message" style="margin: 1.5rem 0;">チャンネル登録情報を取得しました。</div>
-                <div id="channel-list"></div>
+                <p id="status-text">チャンネル登録情報を取得しました。</p>
+                <div id="channel-list-container">
+                    <table id="channel-table">
+                        <thead>
+                            <tr>
+                                <th>アイコン</th>
+                                <th>チャンネル名</th>
+                                <th>最終更新日</th>
+                            </tr>
+                        </thead>
+                        <tbody id="channel-tbody">
+                            </tbody>
+                    </table>
+                </div>
                 <button onclick="logout()" style="margin-top: 2rem; background: none; border: 1px solid var(--border-color); color: var(--secondary-text-color); padding: 0.5rem 1rem; cursor: pointer;">ログアウト</button>
             </section>
         </main>
@@ -112,36 +130,32 @@
             <div class="policy-container">
                 <h5>プライバシーポリシーおよび利用規約</h5>
                 <ul>
-                    <li><strong>YouTube API Servicesの利用:</strong> 本アプリはYouTube API Servicesを利用して登録チャンネル情報を取得・分析しています 。利用者は<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に同意したものとみなされます。</li>
-                    <li><strong>データの収集と保存 (Cookie等の利用):</strong> 利便性向上のため、ブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージ（localStorage）を使用して、キャッシュデータや設定を保存・アクセスします 。</li>
-                    <li><strong>データの更新と削除:</strong> APIデータは6時間ごとに自動更新され、ログアウト時にデバイスから完全に削除されます 。</li>
+                    <li><strong>YouTube API Servicesの利用:</strong> 本アプリはYouTube API Servicesを利用しています [cite: 16]。利用者は<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に同意したものとみなされます。</li>
+                    <li><strong>データの収集と保存 (Cookie等の利用):</strong> 利便性向上のため、ブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージを使用して設定やキャッシュデータを保存します [cite: 7]。</li>
+                    <li><strong>データの更新と削除:</strong> APIデータは6時間ごとに自動更新され、ログアウト時にデバイスから削除されます。</li>
                     <li><strong>Googleの規約:</strong> <a href="http://www.google.com/policies/privacy" target="_blank">Googleプライバシーポリシー</a>をご確認ください。</li>
-                    <li><strong>アクセスの取り消し:</strong> 本サービスへのアクセス許可は、いつでも<a href="https://myaccount.google.com/permissions" target="_blank">Google セキュリティ設定ページ</a>から取り消し可能です 。</li>
+                    <li><strong>アクセスの取り消し:</strong> <a href="https://myaccount.google.com/permissions" target="_blank">Google セキュリティ設定ページ</a>からいつでも許可を取り消せます。</li>
                 </ul>
             </div>
         </footer>
     </div>
 
-    <script type="module">
+    <script>
         document.addEventListener('DOMContentLoaded', async () => {
             const onboarding = document.getElementById('onboarding');
             const results = document.getElementById('results');
-            const loader = document.getElementById('loader');
+            const loader = document.getElementById('onboarding-loader');
 
-            // ログイン状態の確認ロジックの修正
+            // 1. ログイン状態の確認（app.pyの正しいエンドポイントを叩く）
             const checkAuth = async () => {
                 try {
-                    // app.pyに実装されている正しいパス「/api/auth/status」を叩く 
-                    const response = await fetch('/api/auth/status'); 
-                    
+                    const response = await fetch('/api/auth/status');
                     if (response.ok) {
                         const data = await response.json();
-                        // サーバーが認証済みステータスを返しているか確認 
                         return data.status === 'authenticated';
                     }
                     return false;
                 } catch (e) {
-                    console.error("認証チェックに失敗しました:", e);
                     return false;
                 }
             };
@@ -149,29 +163,76 @@
             const isLoggedIn = await checkAuth();
 
             if (isLoggedIn) {
-                // ログイン済みなら結果画面を表示
                 onboarding.classList.add('hidden');
                 results.classList.remove('hidden');
-                loadData();
+                loadData(); // データの取得を開始
             } else {
-                // 未ログインならオンボーディングを表示
                 onboarding.classList.remove('hidden');
                 results.classList.add('hidden');
             }
 
-            // ログインボタンクリック時にローダーを表示
             document.getElementById('loginBtn').addEventListener('click', () => {
                 loader.classList.remove('hidden');
             });
         });
 
+        // 2. 実際のデータ取得処理
         async function loadData() {
-            console.log("分析データをロードしています...");
-            // ここで /api/all-channels などのデータを取得する処理を記述
+            const tbody = document.getElementById('channel-tbody');
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">チャンネルを読み込み中...</td></tr>';
+
+            try {
+                // app.pyの /api/all-channels から登録リストを取得
+                const response = await fetch('/api/all-channels');
+                if (!response.ok) throw new Error('通信エラー');
+                
+                const channels = await response.json();
+                tbody.innerHTML = ''; // ローディング表示を消去
+
+                if (channels.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">登録チャンネルがありません。</td></tr>';
+                    return;
+                }
+
+                // 各チャンネルを一行ずつ作成して追加
+                channels.forEach(channel => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><img src="${channel.thumbnailUrl}" class="channel-icon"></td>
+                        <td>${channel.channelName}</td>
+                        <td id="date-${channel.channelId}">解析中...</td>
+                    `;
+                    tbody.appendChild(row);
+
+                    // 最終更新日の個別解析（app.pyの /api/analyze を叩く）
+                    fetch('/api/analyze', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ channelId: channel.channelId })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        const dateCell = document.getElementById(`date-${channel.channelId}`);
+                        if (data.lastUploadDate) {
+                            const date = new Date(data.lastUploadDate);
+                            dateCell.innerText = date.toLocaleDateString('ja-JP');
+                        } else {
+                            dateCell.innerText = '投稿なし';
+                        }
+                    })
+                    .catch(() => {
+                        document.getElementById(`date-${channel.channelId}`).innerText = '取得失敗';
+                    });
+                });
+
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:red;">データの取得に失敗しました。</td></tr>`;
+                console.error(e);
+            }
         }
 
         window.logout = () => {
-            // トップページに戻る（セッション管理に合わせて適宜調整）
+            // ログアウト処理（現在は暫定的にトップへ）
             window.location.href = '/';
         };
     </script>
