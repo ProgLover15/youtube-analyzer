@@ -6,6 +6,7 @@
     <title>視聴習慣アナライザー for YouTube</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
+        /* 元のデザインを完全に復元  */
         :root {
             --background-color: #121212;
             --surface-color: #1e1e1e;
@@ -16,19 +17,25 @@
             --button-blue-color: #3ea6ff;
             --error-color: #f44336;
         }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--background-color);
             background-image: linear-gradient(to top, #121212, #1a1a1a);
             color: var(--primary-text-color);
+            line-height: 1.6;
             padding: 2rem;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
         }
+
         #app { max-width: 1200px; margin: 0 auto; flex: 1; width: 100%; }
         header { text-align: center; margin-bottom: 3rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; }
+        header h1 { font-size: 2.2rem; color: var(--primary-text-color); margin-bottom: 0.5rem; }
+        header p { font-size: 1.1rem; color: var(--secondary-text-color); }
+
         main {
             background-color: var(--surface-color);
             border-radius: 8px;
@@ -36,6 +43,8 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
             text-align: center;
         }
+
+        /* ログインボタンのデザイン復元  */
         .g-sign-in-button {
             display: inline-flex;
             align-items: center;
@@ -48,18 +57,26 @@
             font-size: 14px;
             font-weight: 500;
             text-decoration: none;
+            transition: box-shadow .2s;
             margin: 2rem auto;
             cursor: pointer;
             border: none;
         }
+        .g-sign-in-button:hover { box-shadow: 0 0 3px 3px rgba(66,133,244,.3); }
         .g-logo-wrapper { padding: 12px; display: flex; align-items: center; }
-        .hidden { display: none !important; }
 
-        /* リスト表示スタイル */
-        .channel-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color); text-align: left; }
-        .channel-icon { width: 44px; height: 44px; border-radius: 50%; margin-right: 15px; background: #333; }
-        .channel-info { flex-grow: 1; }
-        .last-post { color: var(--secondary-text-color); font-size: 0.85rem; }
+        /* テーブルとリストのデザイン */
+        table { width: 100%; border-collapse: collapse; margin-top: 2rem; text-align: left; }
+        th, td { padding: 1rem; border-bottom: 1px solid var(--border-color); }
+        .channel-icon { width: 40px; height: 40px; border-radius: 50%; vertical-align: middle; margin-right: 10px; }
+        .btn-delete { background-color: transparent; color: var(--error-color); border: 1px solid var(--error-color); padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-delete:hover { background-color: var(--error-color); color: white; }
+
+        .hidden { display: none !important; }
+        .loader { border: 4px solid var(--border-color); border-top: 4px solid var(--button-blue-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 2rem auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--secondary-text-color); font-size: 0.85rem; text-align: left; }
     </style>
 </head>
 <body>
@@ -83,81 +100,84 @@
             </section>
 
             <section id="results" class="hidden">
-                <h2>分析完了</h2>
-                <div id="channel-list" style="margin-top: 20px;"></div>
+                <h2>分析結果</h2>
+                <div id="loader" class="loader hidden"></div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>チャンネル</th>
+                            <th>最終更新日</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="channel-list"></tbody>
+                </table>
                 <button onclick="logout()" style="margin-top: 2rem; background: none; border: 1px solid var(--border-color); color: var(--secondary-text-color); padding: 0.5rem 1rem; cursor: pointer;">ログアウト</button>
             </section>
         </main>
-        
-        <footer style="margin-top: 2rem; font-size: 0.8rem; color: var(--secondary-text-color); text-align: center;">
-            <p>※YouTube API Servicesを利用しています。利便性向上のためCookieを使用します。</p>
+
+        <footer>
+            <p>本アプリはYouTube API Servicesを利用しています。詳細はYouTube利用規約およびGoogleプライバシーポリシーをご確認ください。</p>
         </footer>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            const onboarding = document.getElementById('onboarding');
-            const results = document.getElementById('results');
-
-            // ログイン状態確認（app.pyの正しいエンドポイント）
+            // app.py の /api/auth/status に合わせる 
             const checkAuth = async () => {
                 try {
                     const response = await fetch('/api/auth/status');
-                    if (response.ok) {
-                        const data = await response.json();
-                        return data.status === 'authenticated';
-                    }
-                    return false;
+                    const data = await response.json();
+                    return data.status === 'authenticated';
                 } catch (e) { return false; }
             };
 
             if (await checkAuth()) {
-                onboarding.classList.add('hidden');
-                results.classList.remove('hidden');
+                document.getElementById('onboarding').classList.add('hidden');
+                document.getElementById('results').classList.remove('hidden');
                 loadData();
             }
         });
 
         async function loadData() {
             const list = document.getElementById('channel-list');
-            list.innerHTML = 'チャンネルリストを取得中...';
+            const loader = document.getElementById('loader');
+            loader.classList.remove('hidden');
+            
             try {
-                // app.py の get_all_channels を呼び出す
                 const response = await fetch('/api/all-channels');
                 const channels = await response.json();
-                list.innerHTML = ''; 
+                loader.classList.add('hidden');
+                list.innerHTML = '';
 
                 channels.forEach(ch => {
-                    const div = document.createElement('div');
-                    div.className = 'channel-item';
-                    div.innerHTML = `
-                        <img src="${ch.thumbnailUrl}" class="channel-icon">
-                        <div class="channel-info">
-                            <div>${ch.channelName}</div>
-                            <div class="last-post" id="date-${ch.channelId}">解析中...</div>
-                        </div>
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><img src="${ch.thumbnailUrl}" class="channel-icon">${ch.channelName}</td>
+                        <td id="date-${ch.channelId}">解析中...</td>
+                        <td><button class="btn-delete" onclick="deleteSub('${ch.subscriptionId}')">解除</button></td>
                     `;
-                    list.appendChild(div);
+                    list.appendChild(tr);
 
-                    // 各チャンネルの最終投稿日を個別に解析 (app.py の analyze_channel)
+                    // 個別解析リクエスト
                     fetch('/api/analyze', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ channelId: ch.channelId })
                     })
                     .then(res => res.json())
                     .then(data => {
                         const dateEl = document.getElementById(`date-${ch.channelId}`);
-                        if (data.lastUploadDate) {
-                            dateEl.innerText = '最終更新: ' + new Date(data.lastUploadDate).toLocaleDateString();
-                        } else {
-                            dateEl.innerText = '最終更新: 投稿なし';
-                        }
+                        dateEl.innerText = data.lastUploadDate ? new Date(data.lastUploadDate).toLocaleDateString() : '投稿なし';
                     });
                 });
-            } catch (e) {
-                list.innerHTML = 'データの取得に失敗しました。再読み込みしてください。';
-            }
+            } catch (e) { loader.innerText = 'エラーが発生しました'; }
+        }
+
+        async function deleteSub(subId) {
+            if (!confirm('本当に解除しますか？')) return;
+            const res = await fetch(`/api/subscriptions/${subId}`, { method: 'DELETE' });
+            if (res.ok) location.reload();
         }
 
         function logout() { window.location.href = '/'; }
