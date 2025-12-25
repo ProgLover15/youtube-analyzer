@@ -26,7 +26,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--background-color);
+            background-image: linear-gradient(to top, #121212, #1a1a1a);
             color: var(--primary-text-color);
             line-height: 1.6;
             padding: 2rem;
@@ -51,12 +51,8 @@
 
         header h1 {
             font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        /* YouTubeロゴの指定はガイドライン違反となる可能性があるため削除し、テキストを強調 [cite: 25] */
-        .brand-text {
             color: var(--primary-text-color);
+            margin-bottom: 0.5rem;
         }
 
         header p {
@@ -72,7 +68,7 @@
             text-align: center;
         }
 
-        /* --- Googleログインボタンのデザイン修正 (ガイドライン準拠)  --- */
+        /* --- Googleログインボタン (ガイドライン準拠) --- */
         .g-sign-in-button {
             display: inline-flex;
             align-items: center;
@@ -86,7 +82,8 @@
             font-weight: 500;
             text-decoration: none;
             transition: box-shadow .2s;
-            margin-top: 1.5rem;
+            margin: 2rem auto;
+            max-width: 240px;
         }
 
         .g-sign-in-button:hover {
@@ -97,16 +94,30 @@
             padding: 12px;
         }
 
-        .g-sign-in-button span {
-            padding: 12px 0;
-        }
+        /* --- UIコンポーネントのスタイル復活 --- */
+        section { margin-bottom: 3rem; }
+        .hidden { display: none; }
+        .error-message { color: var(--error-color); margin-top: 1rem; }
 
+        .loader { 
+            border: 4px solid var(--border-color); 
+            border-top: 4px solid var(--button-blue-color); 
+            border-radius: 50%; 
+            width: 40px; 
+            height: 40px; 
+            animation: spin 1s linear infinite; 
+            margin: 2rem auto; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* --- フッターとポリシー --- */
         footer {
             margin-top: 4rem;
             padding-top: 2rem;
             border-top: 1px solid var(--border-color);
             color: var(--secondary-text-color);
             font-size: 0.85rem;
+            text-align: center;
         }
 
         .policy-container {
@@ -123,24 +134,14 @@
             margin-bottom: 0.5rem;
         }
 
-        .policy-container a {
-            color: var(--button-blue-color);
-            text-decoration: none;
-        }
-
-        .policy-container ul {
-            margin-left: 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        section { margin-bottom: 3rem; }
-        .hidden { display: none; }
+        .policy-container a { color: var(--button-blue-color); text-decoration: none; }
+        .policy-container ul { margin-left: 1.5rem; margin-bottom: 1rem; }
     </style>
 </head>
 <body>
     <div id="app">
         <header>
-            <h1><span class="brand-text">YouTube 視聴習慣アナライザー</span></h1>
+            <h1>YouTube 視聴習慣アナライザー</h1>
             <p>視聴習慣を分析して、最適なチャンネル登録を見つけましょう。</p>
         </header>
 
@@ -166,10 +167,13 @@
                     </div>
                     <span>Googleでサインイン</span>
                 </a>
-                
+
                 <div id="loader" class="loader hidden"></div>
                 <p id="error" class="error-message" role="alert"></p>
             </section>
+
+            <section id="results" class="hidden">
+                </section>
         </main>
 
         <footer>
@@ -177,15 +181,21 @@
                 <h5>プライバシーポリシーおよび利用規約</h5>
                 <p>本アプリケーション（以下「当サービス」）の利用にあたり、以下の事項をご確認ください：</p>
                 <ul>
-                    <li><strong>YouTube API Servicesの利用:</strong> 当サービスはYouTube API Servicesを利用して登録チャンネル情報を取得しています。利用者は当サービスを利用することで、<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に拘束されることに同意したものとみなされます。</li>
-                    <li><strong>データの収集と保存:</strong> 当サービスは、利便性向上のため、お客様のブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージ（localStorage）を使用して、登録チャンネルのキャッシュデータやUI設定を保存・アクセスします 。</li>
-                    <li><strong>データの更新と削除:</strong> 取得したAPIデータは最新の状態を保つため6時間ごとに自動的に更新（再取得）されます。また、ログアウト時やブラウザのキャッシュをクリアすることで、これらのデータはデバイスから完全に削除されます。</li>
-                    <li><strong>Googleの規約:</strong> Googleによるデータの取り扱いについては、<a href="http://www.google.com/policies/privacy" target="_blank">Googleプライバシーポリシー</a>をご確認ください。</li>
-                    <li><strong>アクセスの取り消し:</strong> 当サービスへのアクセス許可は、いつでも<a href="https://security.google.com/settings/security/permissions" target="_blank">Google セキュリティ設定ページ</a>から取り消すことができます。</li>
+                    <li><strong>YouTube API Servicesの利用:</strong> 当サービスはYouTube API Servicesを利用しています。利用者は当サービスを利用することで、<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に拘束されることに同意したものとみなされます。</li>
+                    <li><strong>データの収集と保存:</strong> 当サービスは、利便性向上のため、お客様のブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージ（localStorage）を使用して、設定やキャッシュデータを保存・アクセスします。</li>
+                    <li><strong>データの更新と削除:</strong> 取得したAPIデータは最新の状態を保つため6時間ごとに自動的に更新されます。また、ログアウト時にこれらのデータはデバイスから削除されます。</li>
+                    <li><strong>Googleの規約:</strong> <a href="http://www.google.com/policies/privacy" target="_blank">Googleプライバシーポリシー</a>をご確認ください。</li>
+                    <li><strong>アクセスの取り消し:</strong> <a href="https://security.google.com/settings/security/permissions" target="_blank">Google セキュリティ設定ページ</a>からいつでも取り消し可能です。</li>
                 </ul>
-                <p style="text-align: center; font-size: 0.75rem;">&copy; 2025 個人開発者 - YouTube API Compliance Version</p>
+                <p style="text-align: center; font-size: 0.75rem;">&copy; 2025 個人開発者 - Compliance Version</p>
             </div>
         </footer>
     </div>
+
+    <script type="module">
+        // --- ここに元のロジックを貼り付けてください ---
+        // 例: document.getElementById('loginBtn').addEventListener...
+        // 分析中には #loader の hidden クラスを外す処理が必要です。
+    </script>
 </body>
 </html>
