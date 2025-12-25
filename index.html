@@ -40,7 +40,7 @@
             padding-bottom: 1.5rem;
         }
 
-        /* 修正：YouTubeロゴを外してテキストのみに（審査対策） */
+        /* 修正点: アプリ名からYouTubeを先頭から外し、アイコンを削除  */
         header h1 {
             font-size: 2.2rem;
             color: var(--primary-text-color);
@@ -60,7 +60,7 @@
             text-align: center;
         }
 
-        /* --- 修正：Google公式規定のサインインボタン --- */
+        /* 修正点: Google公式ガイドライン準拠のサインインボタン  */
         .g-sign-in-button {
             display: inline-flex;
             align-items: center;
@@ -79,22 +79,10 @@
             border: none;
         }
 
-        .g-sign-in-button:hover {
-            box-shadow: 0 0 3px 3px rgba(66,133,244,.3);
-        }
+        .g-sign-in-button:hover { box-shadow: 0 0 3px 3px rgba(66,133,244,.3); }
+        .g-logo-wrapper { padding: 12px; display: flex; align-items: center; }
+        .g-sign-in-button span { padding: 12px 0; color: #757575; }
 
-        .g-logo-wrapper {
-            padding: 12px;
-            display: flex;
-            align-items: center;
-        }
-
-        .g-sign-in-button span {
-            padding: 12px 0;
-            color: #757575;
-        }
-
-        /* --- ローダー --- */
         .loader {
             border: 4px solid var(--border-color);
             border-top: 4px solid var(--button-blue-color);
@@ -109,7 +97,6 @@
         .error-message { color: var(--error-color); margin-top: 1rem; }
         .hidden { display: none !important; }
 
-        /* --- フッター・ポリシー --- */
         footer {
             margin-top: 4rem;
             padding-top: 2rem;
@@ -151,7 +138,7 @@
             <section id="onboarding">
                 <h2>アカウントを連携して分析を開始</h2>
                 <p>
-                    「Googleでサインイン」ボタンをクリックして、YouTubeアカウントの情報の閲覧・編集を許可してください。<br>
+                    「Google でサインイン」ボタンをクリックして、YouTubeアカウントの情報の閲覧を許可してください。<br>
                     <strong>ログインすることで、以下のプライバシーポリシーおよびYouTube利用規約に同意したものとみなされます。</strong>
                 </p>
 
@@ -183,9 +170,9 @@
                 <h5>プライバシーポリシーおよび利用規約</h5>
                 <p>当サービスの利用にあたり、以下の事項をご確認ください：</p>
                 <ul>
-                    <li><strong>YouTube API Servicesの利用:</strong> 当サービスはYouTube API Servicesを利用しています。利用者は<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に拘束されることに同意したものとみなされます。</li>
-                    <li><strong>データの収集と保存:</strong> 利便性向上のため、ブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージを使用して、APIキャッシュデータ等を保存・認識する場合があります。</li>
-                    <li><strong>データの更新と削除:</strong> APIデータは<strong>6時間ごとに自動更新</strong>されます。ログアウトやキャッシュ消去により、データはデバイスから完全に削除されます。</li>
+                    <li><strong>YouTube API Servicesの利用:</strong> 当サービスはYouTube API Servicesを利用しています。利用者は<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に同意したものとみなされます。</li>
+                    <li><strong>データの収集と保存:</strong> 利便性向上のため、ブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージを使用して、APIキャッシュデータ等を認識・保存する場合があります。</li>
+                    <li><strong>データの更新と削除:</strong> APIデータは6時間ごとに自動更新されます。ログアウトやキャッシュ消去により、データはデバイスから完全に削除されます。</li>
                     <li><strong>Googleの規約:</strong> <a href="http://www.google.com/policies/privacy" target="_blank">Googleプライバシーポリシー</a>をご確認ください。</li>
                     <li><strong>アクセスの取り消し:</strong> <a href="https://security.google.com/settings/security/permissions" target="_blank">Google セキュリティ設定ページ</a>からいつでも取り消し可能です。</li>
                 </ul>
@@ -195,20 +182,18 @@
     </div>
 
     <script type="module">
-        // 動作ロジックの追加
         document.addEventListener('DOMContentLoaded', () => {
             const loginBtn = document.getElementById('loginBtn');
             const loader = document.getElementById('loader');
 
             if (loginBtn) {
                 loginBtn.addEventListener('click', () => {
-                    // ローダーを表示してボタンを隠す（これで「動いている」ことがわかります）
+                    // 動作確認用: クリック時にローダーを表示
                     loader.classList.remove('hidden');
                     loginBtn.classList.add('hidden');
+                    console.log("認証プロセスを開始します...");
                 });
             }
-
-            // --- 以前の getCachedChannels などの分析ロジックをここに貼り付けてください ---
         });
     </script>
 </body>
