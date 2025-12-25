@@ -17,11 +17,7 @@
             --error-color: #f44336;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -35,12 +31,7 @@
             min-height: 100vh;
         }
 
-        #app {
-            max-width: 1200px;
-            margin: 0 auto;
-            flex: 1;
-            width: 100%;
-        }
+        #app { max-width: 1200px; margin: 0 auto; flex: 1; width: 100%; }
 
         header {
             text-align: center;
@@ -49,6 +40,7 @@
             padding-bottom: 1.5rem;
         }
 
+        /* 修正：YouTubeロゴを外してテキストのみに（審査対策） */
         header h1 {
             font-size: 2.2rem;
             color: var(--primary-text-color);
@@ -68,7 +60,7 @@
             text-align: center;
         }
 
-        /* --- Google規定のサインインボタン --- */
+        /* --- 修正：Google公式規定のサインインボタン --- */
         .g-sign-in-button {
             display: inline-flex;
             align-items: center;
@@ -117,7 +109,7 @@
         .error-message { color: var(--error-color); margin-top: 1rem; }
         .hidden { display: none !important; }
 
-        /* --- フッターとポリシー --- */
+        /* --- フッター・ポリシー --- */
         footer {
             margin-top: 4rem;
             padding-top: 2rem;
@@ -159,7 +151,7 @@
             <section id="onboarding">
                 <h2>アカウントを連携して分析を開始</h2>
                 <p>
-                    「Googleでサインイン」ボタンをクリックして、YouTubeアカウント情報の閲覧・編集を許可してください。<br>
+                    「Googleでサインイン」ボタンをクリックして、YouTubeアカウントの情報の閲覧・編集を許可してください。<br>
                     <strong>ログインすることで、以下のプライバシーポリシーおよびYouTube利用規約に同意したものとみなされます。</strong>
                 </p>
 
@@ -183,48 +175,41 @@
             </section>
 
             <section id="results" class="hidden">
-                </section>
+            </section>
         </main>
 
         <footer>
             <div class="policy-container">
                 <h5>プライバシーポリシーおよび利用規約</h5>
-                <p>本アプリケーション（以下「当サービス」）の利用にあたり、以下の事項をご確認ください：</p>
+                <p>当サービスの利用にあたり、以下の事項をご確認ください：</p>
                 <ul>
-                    <li><strong>YouTube API Servicesの利用:</strong> 当サービスはYouTube API Servicesを利用して登録チャンネル情報を取得・分析しています。利用者は当サービスを利用することで、<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に拘束されることに同意したものとみなされます。</li>
-                    <li><strong>データの収集と保存（Cookie等の利用）:</strong> 当サービスは、利便性向上のためにお客様のブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージ（localStorage）を使用して、キャッシュデータや設定を保存・アクセスします。</li>
-                    <li><strong>データの更新と削除:</strong> 取得したAPIデータは最新の状態を保つため6時間ごとに自動的に更新されます。また、ログアウト時やブラウザのキャッシュ消去により、これらのデータはデバイスから完全に削除されます。</li>
-                    <li><strong>Googleの規約:</strong> Googleによるデータの取り扱いについては、<a href="http://www.google.com/policies/privacy" target="_blank">Googleプライバシーポリシー</a>をご確認ください。</li>
-                    <li><strong>アクセスの取り消し:</strong> 当サービスへのアクセス許可は、いつでも<a href="https://security.google.com/settings/security/permissions" target="_blank">Google セキュリティ設定ページ</a>から取り消すことができます。</li>
+                    <li><strong>YouTube API Servicesの利用:</strong> 当サービスはYouTube API Servicesを利用しています。利用者は<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に拘束されることに同意したものとみなされます。</li>
+                    <li><strong>データの収集と保存:</strong> 利便性向上のため、ブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージを使用して、APIキャッシュデータ等を保存・認識する場合があります。</li>
+                    <li><strong>データの更新と削除:</strong> APIデータは<strong>6時間ごとに自動更新</strong>されます。ログアウトやキャッシュ消去により、データはデバイスから完全に削除されます。</li>
+                    <li><strong>Googleの規約:</strong> <a href="http://www.google.com/policies/privacy" target="_blank">Googleプライバシーポリシー</a>をご確認ください。</li>
+                    <li><strong>アクセスの取り消し:</strong> <a href="https://security.google.com/settings/security/permissions" target="_blank">Google セキュリティ設定ページ</a>からいつでも取り消し可能です。</li>
                 </ul>
-                <p style="text-align: center; font-size: 0.75rem; margin-top: 1rem;">&copy; 2025 個人開発者 - Compliance Version</p>
+                <p style="text-align: center; font-size: 0.75rem;">&copy; 2025 Compliance Version</p>
             </div>
         </footer>
     </div>
 
     <script type="module">
-        // サインインボタンとローダーの制御ロジックを復活
+        // 動作ロジックの追加
         document.addEventListener('DOMContentLoaded', () => {
             const loginBtn = document.getElementById('loginBtn');
             const loader = document.getElementById('loader');
-            const errorElement = document.getElementById('error');
 
             if (loginBtn) {
-                loginBtn.addEventListener('click', (e) => {
-                    // ローダーを表示し、ボタンを非表示にする
+                loginBtn.addEventListener('click', () => {
+                    // ローダーを表示してボタンを隠す（これで「動いている」ことがわかります）
                     loader.classList.remove('hidden');
                     loginBtn.classList.add('hidden');
-                    
-                    // エラーメッセージがあれば隠す
-                    if (errorElement) errorElement.classList.add('hidden');
-                    
-                    // 実際のリンク先へ移動する（href属性の /auth/google へ）
                 });
             }
-        });
 
-        // --- ここに「RealBackend」など、以前のあなたのプログラム（ロジック）を貼り付けてください ---
-        // (getCachedChannels などの関数があればここに記述)
+            // --- 以前の getCachedChannels などの分析ロジックをここに貼り付けてください ---
+        });
     </script>
 </body>
 </html>
