@@ -18,7 +18,6 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--background-color);
@@ -32,25 +31,9 @@
         }
 
         #app { max-width: 1200px; margin: 0 auto; flex: 1; width: 100%; }
-
-        header {
-            text-align: center;
-            margin-bottom: 3rem;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 1.5rem;
-        }
-
-        /* 修正点: アプリ名からYouTubeを先頭から外し、アイコンを削除  */
-        header h1 {
-            font-size: 2.2rem;
-            color: var(--primary-text-color);
-            margin-bottom: 0.5rem;
-        }
-
-        header p {
-            font-size: 1.1rem;
-            color: var(--secondary-text-color);
-        }
+        header { text-align: center; margin-bottom: 3rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; }
+        header h1 { font-size: 2.2rem; color: var(--primary-text-color); margin-bottom: 0.5rem; }
+        header p { font-size: 1.1rem; color: var(--secondary-text-color); }
 
         main {
             background-color: var(--surface-color);
@@ -60,7 +43,7 @@
             text-align: center;
         }
 
-        /* 修正点: Google公式ガイドライン準拠のサインインボタン  */
+        /* --- Branding Guideline Compliant Button [cite: 25, 36] --- */
         .g-sign-in-button {
             display: inline-flex;
             align-items: center;
@@ -78,50 +61,19 @@
             cursor: pointer;
             border: none;
         }
-
         .g-sign-in-button:hover { box-shadow: 0 0 3px 3px rgba(66,133,244,.3); }
         .g-logo-wrapper { padding: 12px; display: flex; align-items: center; }
-        .g-sign-in-button span { padding: 12px 0; color: #757575; }
+        .g-sign-in-button span { padding: 12px 0; }
 
-        .loader {
-            border: 4px solid var(--border-color);
-            border-top: 4px solid var(--button-blue-color);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 2rem auto;
-        }
+        .loader { border: 4px solid var(--border-color); border-top: 4px solid var(--button-blue-color); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 2rem auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
         .error-message { color: var(--error-color); margin-top: 1rem; }
         .hidden { display: none !important; }
 
-        footer {
-            margin-top: 4rem;
-            padding-top: 2rem;
-            border-top: 1px solid var(--border-color);
-            color: var(--secondary-text-color);
-            font-size: 0.85rem;
-        }
-
-        .policy-container {
-            max-width: 850px;
-            margin: 0 auto;
-            text-align: left;
-            background-color: rgba(255, 255, 255, 0.03);
-            padding: 2rem;
-            border-radius: 8px;
-        }
-
-        .policy-container h5 {
-            color: var(--primary-text-color);
-            margin-bottom: 1rem;
-            font-size: 1rem;
-            border-left: 4px solid var(--button-blue-color);
-            padding-left: 0.5rem;
-        }
-
+        /* --- Privacy Footer [cite: 11, 13, 22] --- */
+        footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--secondary-text-color); font-size: 0.85rem; }
+        .policy-container { max-width: 850px; margin: 0 auto; text-align: left; background-color: rgba(255, 255, 255, 0.03); padding: 2rem; border-radius: 8px; }
+        .policy-container h5 { color: var(--primary-text-color); margin-bottom: 1rem; border-left: 4px solid var(--button-blue-color); padding-left: 0.5rem; }
         .policy-container a { color: var(--button-blue-color); text-decoration: none; }
         .policy-container ul { margin-left: 1.5rem; margin-bottom: 1.5rem; }
         .policy-container li { margin-bottom: 0.5rem; }
@@ -137,64 +89,81 @@
         <main>
             <section id="onboarding">
                 <h2>アカウントを連携して分析を開始</h2>
-                <p>
-                    「Google でサインイン」ボタンをクリックして、YouTubeアカウントの情報の閲覧を許可してください。<br>
-                    <strong>ログインすることで、以下のプライバシーポリシーおよびYouTube利用規約に同意したものとみなされます。</strong>
-                </p>
-
+                <p>「Googleでサインイン」をクリックして許可してください。</p>
                 <a id="loginBtn" class="g-sign-in-button" href="/auth/google">
                     <div class="g-logo-wrapper">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="18px" height="18px" viewBox="0 0 48 48">
-                            <g>
-                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
-                                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-                                <path fill="none" d="M0 0h48v48H0z"></path>
-                            </g>
+                            <g><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></g>
                         </svg>
                     </div>
                     <span>Google でサインイン</span>
                 </a>
-
                 <div id="loader" class="loader hidden"></div>
-                <p id="error" class="error-message hidden" role="alert"></p>
             </section>
 
             <section id="results" class="hidden">
+                <h2>分析結果</h2>
+                <div id="channel-list"></div>
+                <button onclick="logout()" style="margin-top: 2rem; background: none; border: 1px solid var(--border-color); color: var(--secondary-text-color); padding: 0.5rem 1rem; cursor: pointer;">ログアウト</button>
             </section>
         </main>
 
         <footer>
             <div class="policy-container">
                 <h5>プライバシーポリシーおよび利用規約</h5>
-                <p>当サービスの利用にあたり、以下の事項をご確認ください：</p>
                 <ul>
-                    <li><strong>YouTube API Servicesの利用:</strong> 当サービスはYouTube API Servicesを利用しています。利用者は<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に同意したものとみなされます。</li>
-                    <li><strong>データの収集と保存:</strong> 利便性向上のため、ブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージを使用して、APIキャッシュデータ等を認識・保存する場合があります。</li>
-                    <li><strong>データの更新と削除:</strong> APIデータは6時間ごとに自動更新されます。ログアウトやキャッシュ消去により、データはデバイスから完全に削除されます。</li>
+                    <li><strong>YouTube API Servicesの利用:</strong> 本アプリはYouTube API Servicesを利用しています。利用者は<a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a>に同意したものとみなされます。</li>
+                    <li><strong>データの収集と保存:</strong> 利便性向上のため、ブラウザの<strong>Cookie（クッキー）</strong>およびローカルストレージを使用して設定やキャッシュデータを保存します。</li>
+                    <li><strong>データの更新と削除:</strong> APIデータは6時間ごとに自動更新され、ログアウト時にデバイスから削除されます。</li>
                     <li><strong>Googleの規約:</strong> <a href="http://www.google.com/policies/privacy" target="_blank">Googleプライバシーポリシー</a>をご確認ください。</li>
-                    <li><strong>アクセスの取り消し:</strong> <a href="https://security.google.com/settings/security/permissions" target="_blank">Google セキュリティ設定ページ</a>からいつでも取り消し可能です。</li>
                 </ul>
-                <p style="text-align: center; font-size: 0.75rem;">&copy; 2025 Compliance Version</p>
             </div>
         </footer>
     </div>
 
     <script type="module">
-        document.addEventListener('DOMContentLoaded', () => {
-            const loginBtn = document.getElementById('loginBtn');
+        document.addEventListener('DOMContentLoaded', async () => {
+            const onboarding = document.getElementById('onboarding');
+            const results = document.getElementById('results');
             const loader = document.getElementById('loader');
 
-            if (loginBtn) {
-                loginBtn.addEventListener('click', () => {
-                    // 動作確認用: クリック時にローダーを表示
-                    loader.classList.remove('hidden');
-                    loginBtn.classList.add('hidden');
-                    console.log("認証プロセスを開始します...");
-                });
+            // 1. ログイン状態の確認
+            // サーバー側でセッションが確立されているか、
+            // あるいはURLパラメータなどで成功した証拠を受け取っているか確認します。
+            const checkAuth = async () => {
+                try {
+                    // ここでサーバーの認証チェックAPI（例: /api/status）を叩くか、
+                    // サーバーがセットした特定のCookieの有無を確認します。
+                    const response = await fetch('/api/user-status'); 
+                    return response.ok; // ステータス200ならログイン済み
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            const isLoggedIn = await checkAuth();
+
+            if (isLoggedIn) {
+                // ログイン済みなら結果画面を表示
+                onboarding.classList.add('hidden');
+                results.classList.remove('hidden');
+                loadData();
+            } else {
+                // 未ログインならオンボーディングを表示
+                onboarding.classList.remove('hidden');
+                results.classList.add('hidden');
             }
         });
+
+        async function loadData() {
+            // ここでチャンネル情報を取得して描画するロジックを走らせる
+            console.log("分析データを取得中...");
+        }
+
+        window.logout = () => {
+            // ログアウト処理（サーバーのログアウトエンドポイントへ飛ばす）
+            window.location.href = '/auth/logout';
+        };
     </script>
 </body>
 </html>
