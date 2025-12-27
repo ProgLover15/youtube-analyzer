@@ -10,12 +10,17 @@ load_dotenv()
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
+
+# 本番環境でのHTTPS対応 (ProxyFix)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
 API_SERVICE_NAME = "youtube"
 API_VERSION = "v3"
-SCOPES = ["https://www.googleapis.com/auth/youtube", "https://www.googleapis.com/auth/youtube.readonly"]
+SCOPES = [
+    "https://www.googleapis.com/auth/youtube",
+    "https://www.googleapis.com/auth/youtube.readonly"
+]
 
 CLIENT_SECRETS_FILE = {
     "web": {
@@ -29,32 +34,43 @@ CLIENT_SECRETS_FILE = {
 }
 
 def build_youtube_service():
-    if 'credentials' not in session: return None
+    if 'credentials' not in session:
+        return None
     from google.oauth2.credentials import Credentials
-    return googleapiclient.discovery.build(API_SERVICE_NAME, API_VERSION, credentials=Credentials(**session['credentials']))
+    return googleapiclient.discovery.build(
+        API_SERVICE_NAME, API_VERSION, credentials=Credentials(**session['credentials']))
 
 @app.route('/')
-def index(): return send_from_directory('.', 'index.html')
+def index():
+    return send_from_directory('.', 'index.html')
 
 @app.route('/auth/google')
 def auth_google():
     flow = google_auth_oauthlib.flow.Flow.from_client_config(CLIENT_SECRETS_FILE, scopes=SCOPES)
     flow.redirect_uri = url_for('auth_callback', _external=True)
-    auth_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true')
+    authorization_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true')
     session['state'] = state
-    return redirect(auth_url)
+    return redirect(authorization_url)
 
 @app.route('/auth/callback')
 def auth_callback():
-    flow = google_auth_oauthlib.flow.Flow.from_client_config(CLIENT_SECRETS_FILE, scopes=SCOPES, state=session['state'])
+    state = session.get('state')
+    flow = google_auth_oauthlib.flow.Flow.from_client_config(CLIENT_SECRETS_FILE, scopes=SCOPES, state=state)
     flow.redirect_uri = url_for('auth_callback', _external=True)
-    auth_resp = request.url.replace('http:', 'https:', 1) if request.url.startswith('http:') else request.url
-    flow.fetch_token(authorization_response=auth_resp)
-    creds = flow.credentials
+    
+    authorization_response = request.url
+    if authorization_response.startswith('http:'):
+        authorization_response = authorization_response.replace('http:', 'https:', 1)
+
+    flow.fetch_token(authorization_response=authorization_response)
+    credentials = flow.credentials
     session['credentials'] = {
-        'token': creds.token, 'refresh_token': creds.refresh_token, 
-        'token_uri': creds.token_uri, 'client_id': creds.client_id, 
-        'client_secret': creds.client_secret, 'scopes': creds.scopes
+        'token': credentials.token,
+        'refresh_token': credentials.refresh_token,
+        'token_uri': credentials.token_uri,
+        'client_id': credentials.client_id,
+        'client_secret': credentials.client_secret,
+        'scopes': credentials.scopes
     }
     return redirect(url_for('index'))
 
@@ -65,55 +81,75 @@ def logout():
 
 @app.route('/api/auth/status')
 def auth_status():
-    return jsonify({"status": "authenticated" if 'credentials' in session else "unauthenticated"})
+    if 'credentials' in session:
+        return jsonify({"status": "authenticated"})
+    return jsonify({"error": "Not authenticated"}), 401
 
 @app.route('/api/all-channels')
 def get_all_channels():
     youtube = build_youtube_service()
-    if not youtube: return jsonify({"error": "Unauthorized"}), 401
-    subs = []
-    token = None
+    if not youtube: return jsonify({"error": "Not authenticated"}), 401
+    
+    all_subscriptions = []
+    next_page_token = None
     try:
         while True:
-            res = youtube.subscriptions().list(part="snippet", mine=True, maxResults=50, pageToken=token).execute()
+            res = youtube.subscriptions().list(
+                part="snippet", mine=True, maxResults=50, pageToken=next_page_token
+            ).execute()
             for item in res.get("items", []):
-                subs.append({
+                all_subscriptions.append({
                     "subscriptionId": item["id"],
                     "channelId": item["snippet"]["resourceId"]["channelId"],
                     "channelName": item["snippet"]["title"],
                     "thumbnailUrl": item["snippet"]["thumbnails"]["default"]["url"],
                     "lastUploadDate": "pending",
-                    "isSubscribed": True
+                    "isSubscribed": True,
                 })
-            token = res.get("nextPageToken")
-            if not token: break
-        return jsonify(subs)
-    except Exception as e: return jsonify({"error": str(e)}), 500
+            next_page_token = res.get("nextPageToken")
+            if not next_page_token: break
+        return jsonify(all_subscriptions)
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_channel():
     youtube = build_youtube_service()
+    if not youtube: return jsonify({"error": "Not authenticated"}), 401
     data = request.get_json()
-    ch_id = data.get('channelId')
+    channel_id = data.get('channelId')
     try:
-        res = youtube.channels().list(part="contentDetails", id=ch_id).execute()
-        up_id = res["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
-        items = youtube.playlistItems().list(part="snippet", playlistId=up_id, maxResults=1).execute()
-        date = items["items"][0]["snippet"]["publishedAt"] if items.get("items") else None
-        return jsonify({"channelId": ch_id, "lastUploadDate": date})
-    except: return jsonify({"channelId": ch_id, "lastUploadDate": None})
+        ch_res = youtube.channels().list(part="contentDetails", id=channel_id).execute()
+        uploads_id = ch_res["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+        pl_res = youtube.playlistItems().list(part="snippet", playlistId=uploads_id, maxResults=1).execute()
+        last_upload_date = pl_res["items"][0]["snippet"]["publishedAt"] if pl_res.get("items") else None
+        return jsonify({"channelId": channel_id, "lastUploadDate": last_upload_date})
+    except Exception:
+        return jsonify({"channelId": channel_id, "lastUploadDate": None})
+
+@app.route('/api/subscriptions/<subscription_id>', methods=['DELETE'])
+def delete_subscription(subscription_id):
+    youtube = build_youtube_service()
+    if not youtube: return jsonify({"error": "Not authenticated"}), 401
+    try:
+        youtube.subscriptions().delete(id=subscription_id).execute()
+        return jsonify({"status": "success"}), 200
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
 
 @app.route('/api/subscriptions/bulk-delete', methods=['POST'])
-def bulk_delete():
+def bulk_delete_subscriptions():
     youtube = build_youtube_service()
-    ids = request.get_json().get('subscriptionIds', [])
-    success = 0
-    for sid in ids:
+    if not youtube: return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json()
+    ids = data.get('subscriptionIds', [])
+    success_count = 0
+    for sub_id in ids:
         try:
-            youtube.subscriptions().delete(id=sid).execute()
-            success += 1
+            youtube.subscriptions().delete(id=sub_id).execute()
+            success_count += 1
         except: pass
-    return jsonify({"successCount": success})
+    return jsonify({"successCount": success_count, "failCount": len(ids) - success_count})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
