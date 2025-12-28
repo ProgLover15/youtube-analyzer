@@ -40,6 +40,7 @@
         header {
             text-align: center;
             margin-bottom: 40px;
+            position: relative;
         }
 
         h1 {
@@ -47,6 +48,16 @@
             font-size: 2em;
             margin-bottom: 5px;
             font-weight: 500;
+        }
+
+        .logout-container {
+            position: absolute;
+            top: 0;
+            right: 20px;
+        }
+
+        #logout-btn {
+            padding: 10px 20px;
         }
 
         .container {
@@ -143,6 +154,7 @@
 
         .slider-container {
             margin-top: 15px;
+            position: relative;
         }
 
         .slider-label {
@@ -159,37 +171,77 @@
             font-size: 1.1em;
         }
 
+        .slider-wrapper {
+            position: relative;
+            width: 100%;
+            height: 24px;
+            display: flex;
+            align-items: center;
+        }
+
         input[type="range"] {
             width: 100%;
-            height: 6px;
-            border-radius: 3px;
+            height: 4px;
+            border-radius: 2px;
             background: var(--border-color);
             outline: none;
             -webkit-appearance: none;
+            position: relative;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 18px;
-            height: 18px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
             background: var(--accent-color);
             cursor: pointer;
-            transition: transform 0.2s;
+            position: relative;
+            z-index: 2;
+            transition: transform 0.1s;
         }
 
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
+        input[type="range"]:hover::-webkit-slider-thumb {
+            transform: scale(1.3);
+        }
+
+        input[type="range"]::-moz-range-track {
+            width: 100%;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
         }
 
         input[type="range"]::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
             background: var(--accent-color);
             cursor: pointer;
             border: none;
+        }
+
+        .slider-progress {
+            position: absolute;
+            height: 4px;
+            background: var(--accent-color);
+            border-radius: 2px;
+            pointer-events: none;
+            left: 0;
+            transition: width 0.1s ease;
+        }
+
+        input[type="range"]:hover + .slider-progress {
+            height: 6px;
         }
 
         .filter-tabs {
@@ -532,6 +584,11 @@
     <header>
         <h1>YouTube 視聴習慣アナライザー</h1>
         <p>視聴習慣を分析して、最適なチャンネル登録を見つけましょう。</p>
+        <div class="logout-container" id="logout-container" style="display: none;">
+            <button id="logout-btn" class="btn-secondary">
+                <i class="fas fa-sign-out-alt"></i> ログアウト
+            </button>
+        </div>
     </header>
 
     <div class="container">
@@ -580,6 +637,9 @@
                     <button id="bulk-analyze-btn" class="btn-primary" disabled>
                         <i class="fas fa-chart-line"></i> 活動状況の分析を開始
                     </button>
+                    <button id="cancel-analyze-btn" class="btn-secondary" style="display: none;">
+                        <i class="fas fa-stop"></i> 分析を中断
+                    </button>
                     <button id="bulk-unsubscribe-btn" class="btn-danger" disabled>
                         <i class="fas fa-trash"></i> 選択したチャンネルを登録解除
                     </button>
@@ -597,7 +657,10 @@
                         <span>最終投稿からの日数</span>
                         <span class="slider-value"><span id="threshold-display">60</span> 日以上</span>
                     </div>
-                    <input type="range" id="inactive-threshold-slider" min="30" max="365" value="60" step="1">
+                    <div class="slider-wrapper">
+                        <input type="range" id="inactive-threshold-slider" min="30" max="365" value="60" step="1">
+                        <div class="slider-progress" id="slider-progress"></div>
+                    </div>
                 </div>
                 
                 <div class="filter-tabs">
@@ -623,12 +686,6 @@
                 </div>
                 
                 <div id="channel-items-container"></div>
-            </div>
-
-            <div style="text-align: center; margin-top: 40px;">
-                <button id="logout-btn" class="btn-secondary">
-                    <i class="fas fa-sign-out-alt"></i> ログアウト
-                </button>
             </div>
         </div>
     </div>
@@ -675,6 +732,38 @@
                 これらのデータは、<strong>ユーザーの視聴習慣を分析し、活動休止中のチャンネルを識別する</strong>というアプリの機能を提供するためにのみ使用されます。データはサードパーティと共有されることは一切ありません。
                 (This data is used solely to <strong>analyze user viewing habits and identify inactive channels</strong>, which is the core function of the app. The data is never shared with third parties.)
             </p>
+
+            <h4>ローカルストレージの使用 (Local Storage Usage)</h4>
+            <p style="font-size: 0.9em;">
+                本アプリは、ユーザーエクスペリエンス向上のため、ブラウザのローカルストレージ（LocalStorage）を使用して以下の情報を一時的に保存します：
+                (This app uses browser Local Storage to temporarily store the following information to improve user experience:)
+            </p>
+            <ul style="font-size: 0.9em;">
+                <li>分析したチャンネルの最終投稿日時（ページをリロードした際に再度API呼び出しを行わないため）</li>
+                <li>Activity threshold saved for analysis (to avoid repeated API calls on page reload)</li>
+                <li>アクティビティ閾値の設定（ユーザーの設定を保持するため）</li>
+                <li>User's threshold settings (to maintain user preferences)</li>
+                <li>フィルター設定（ユーザーの表示設定を保持するため）</li>
+                <li>Filter settings (to maintain display preferences)</li>
+            </ul>
+            <p style="font-size: 0.9em; margin-top: 10px;">
+                これらの情報は<strong>ユーザーのブラウザ内にのみ保存され、外部サーバーには送信されません</strong>。また、サードパーティがこれらの情報にアクセスすることはありません。ブラウザのキャッシュをクリアすることで、いつでもこれらの情報を削除できます。
+                (This information is <strong>stored only in the user's browser and is never transmitted to external servers</strong>. Third parties cannot access this information. Users can delete this information at any time by clearing their browser cache.)
+            </p>
+
+            <h4>データの更新・削除頻度 (Data Refresh and Deletion)</h4>
+            <p style="font-size: 0.9em;">
+                本アプリは、YouTube APIから取得したデータ（チャンネル登録情報、最終投稿日時）をサーバー側で永続的に保存しません。すべてのAPIデータは以下の方法で管理されます：
+                (This app does not permanently store data retrieved from the YouTube API on servers. All API data is managed as follows:)
+            </p>
+            <ul style="font-size: 0.9em;">
+                <li><strong>セッションベースの一時保存:</strong> データはセッション中のみメモリに保持され、ブラウザを閉じると自動的に削除されます</li>
+                <li><strong>Session-based temporary storage:</strong> Data is held in memory only during the session and automatically deleted when the browser is closed</li>
+                <li><strong>ローカルストレージのキャッシュ:</strong> 分析結果のみがブラウザのLocalStorageに保存されますが、ユーザーがログアウトするか、ブラウザのキャッシュをクリアすることで削除できます</li>
+                <li><strong>Local Storage cache:</strong> Only analysis results are stored in the browser's Local Storage, which can be deleted by logging out or clearing the browser cache</li>
+                <li><strong>リアルタイムデータ取得:</strong> ユーザーがアプリにアクセスするたびに、最新のチャンネル登録情報をYouTube APIから直接取得します</li>
+                <li><strong>Real-time data retrieval:</strong> Every time a user accesses the app, the latest subscription information is retrieved directly from the YouTube API</li>
+            </ul>
         </section>
 
         <section id="data-deletion" style="margin-bottom: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;">
@@ -749,6 +838,8 @@
         let allChannels = [];
         let currentFilter = 'all';
         let uiState = {};
+        let analysisAbortController = null;
+        let isAnalyzing = false;
         
         // --- Utility Functions ---
         function showLoading(message = '') {
@@ -827,35 +918,70 @@
                 return;
             }
 
-            showLoading();
-            document.getElementById('bulk-analyze-btn').setAttribute('disabled', 'true');
-            const statusElement = document.getElementById('bulk-action-status');
-
-            for (let i = 0; i < channelsToAnalyze.length; i++) {
-                const channel = channelsToAnalyze[i];
-                
-                statusElement.textContent = `分析中... (${i + 1}/${channelsToAnalyze.length})`;
-                showLoading(`分析中... (${i + 1}/${channelsToAnalyze.length})`);
-
-                try {
-                    const result = await apiClient.analyzeChannel(channel.channelId);
-                    channel.lastUploadDate = result.lastUploadDate;
-                } catch (error) {
-                    console.error(`Analysis failed for ${channel.channelName}:`, error);
-                    channel.lastUploadDate = 'error';
-                }
-
-                renderChannelItem(channel.subscriptionId, channel);
-                updateDashboard();
+            if (isAnalyzing) {
+                showToast('既に分析が実行中です。');
+                return;
             }
+
+            isAnalyzing = true;
+            analysisAbortController = new AbortController();
             
-            statusElement.textContent = '分析完了！';
-            setTimeout(() => { statusElement.textContent = ''; }, 3000);
-            document.getElementById('bulk-analyze-btn').removeAttribute('disabled');
-            renderChannels();
-            saveUiState();
-            hideLoading();
-            showToast('全チャンネルの分析が完了しました！');
+            showLoading();
+            const analyzeBtn = document.getElementById('bulk-analyze-btn');
+            const cancelBtn = document.getElementById('cancel-analyze-btn');
+            const statusElement = document.getElementById('bulk-action-status');
+            
+            analyzeBtn.style.display = 'none';
+            cancelBtn.style.display = 'inline-flex';
+
+            try {
+                for (let i = 0; i < channelsToAnalyze.length; i++) {
+                    // Check if analysis was aborted
+                    if (analysisAbortController.signal.aborted) {
+                        statusElement.textContent = '分析を中断しました';
+                        showToast('分析を中断しました');
+                        break;
+                    }
+
+                    const channel = channelsToAnalyze[i];
+                    
+                    statusElement.textContent = `分析中... (${i + 1}/${channelsToAnalyze.length})`;
+                    showLoading(`分析中... (${i + 1}/${channelsToAnalyze.length})`);
+
+                    try {
+                        const result = await apiClient.analyzeChannel(channel.channelId);
+                        channel.lastUploadDate = result.lastUploadDate;
+                    } catch (error) {
+                        console.error(`Analysis failed for ${channel.channelName}:`, error);
+                        channel.lastUploadDate = 'error';
+                    }
+
+                    renderChannelItem(channel.subscriptionId, channel);
+                    updateDashboard();
+                }
+                
+                if (!analysisAbortController.signal.aborted) {
+                    statusElement.textContent = '分析完了！';
+                    showToast('全チャンネルの分析が完了しました！');
+                }
+                
+                setTimeout(() => { statusElement.textContent = ''; }, 3000);
+            } finally {
+                isAnalyzing = false;
+                analysisAbortController = null;
+                analyzeBtn.style.display = 'inline-flex';
+                cancelBtn.style.display = 'none';
+                renderChannels();
+                saveUiState();
+                hideLoading();
+            }
+        }
+
+        function cancelAnalysis() {
+            if (analysisAbortController) {
+                analysisAbortController.abort();
+                showToast('分析を中断しています...');
+            }
         }
 
         async function unsubscribeChannel(subscriptionId) {
@@ -1076,6 +1202,7 @@
             if (isAuth) {
                 document.getElementById('login-section').style.display = 'none';
                 document.getElementById('app-section').style.display = 'block';
+                document.getElementById('logout-container').style.display = 'block';
                 loadUiState();
                 await fetchChannels();
                 
@@ -1086,16 +1213,28 @@
                         tab.classList.remove('active');
                     }
                 });
+                
+                updateSliderProgress();
             } else {
                 document.getElementById('login-section').style.display = 'block';
                 document.getElementById('app-section').style.display = 'none';
+                document.getElementById('logout-container').style.display = 'none';
             }
+        }
+
+        function updateSliderProgress() {
+            const slider = document.getElementById('inactive-threshold-slider');
+            const progress = document.getElementById('slider-progress');
+            const percentage = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+            progress.style.width = percentage + '%';
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             // Threshold slider
-            document.getElementById('inactive-threshold-slider').addEventListener('input', (e) => {
+            const slider = document.getElementById('inactive-threshold-slider');
+            slider.addEventListener('input', (e) => {
                 document.getElementById('threshold-display').textContent = e.target.value;
+                updateSliderProgress();
                 renderChannels();
                 updateDashboard();
                 saveUiState();
@@ -1129,6 +1268,9 @@
             
             // Bulk analyze
             document.getElementById('bulk-analyze-btn').addEventListener('click', startAnalysis);
+
+            // Cancel analyze
+            document.getElementById('cancel-analyze-btn').addEventListener('click', cancelAnalysis);
 
             // Bulk unsubscribe
             document.getElementById('bulk-unsubscribe-btn').addEventListener('click', async () => {
