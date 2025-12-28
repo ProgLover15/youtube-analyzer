@@ -109,16 +109,20 @@ def auth_status():
     return jsonify({"error": "Not authenticated"}), 401
 
 # --- APIエンドポイント ---
+
 @app.route('/api/all-channels')
 def get_all_channels():
+    """全登録チャンネルをループ処理で確実に取得する"""
     youtube = build_youtube_service()
     if not youtube:
         return jsonify({"error": "Not authenticated"}), 401
 
     all_subscriptions = []
     next_page_token = None
+    
     try:
         while True:
+            # 1リクエスト最大50件取得
             request_api = youtube.subscriptions().list(
                 part="snippet",
                 mine=True,
@@ -137,16 +141,24 @@ def get_all_channels():
                     "isSubscribed": True,
                 })
 
+            # 次のページがあるか確認
             next_page_token = response.get("nextPageToken")
             if not next_page_token:
                 break
+                
         return jsonify(all_subscriptions)
 
     except googleapiclient.errors.HttpError as e:
+        # 途中でエラーが起きても、そこまでに取得できたリストがあればそれを返す
+        if all_subscriptions:
+            return jsonify(all_subscriptions)
         return jsonify({"message": f"An API error occurred: {e}"}), 500
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_channel():
+    """特定チャンネルの最新動画投稿日を取得する"""
     youtube = build_youtube_service()
     if not youtube:
         return jsonify({"error": "Not authenticated"}), 401
@@ -157,16 +169,19 @@ def analyze_channel():
         return jsonify({"message": "channelId is required"}), 400
 
     try:
+        # チャンネルの「アップロード済み動画」プレイリストIDを取得
         channel_request = youtube.channels().list(
             part="contentDetails",
             id=channel_id
         )
         channel_response = channel_request.execute()
+        
         if not channel_response.get("items"):
             return jsonify({"channelId": channel_id, "lastUploadDate": None})
 
         uploads_playlist_id = channel_response["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
 
+        # そのプレイリストから最新1件の動画を取得
         playlist_request = youtube.playlistItems().list(
             part="snippet",
             playlistId=uploads_playlist_id,
@@ -180,9 +195,10 @@ def analyze_channel():
 
         return jsonify({
             "channelId": channel_id,
-            "last_upload_date": last_upload_date
+            "lastUploadDate": last_upload_date
         })
-    except Exception:
+    except Exception as e:
+        # 分析エラー時は日付をNoneにして返し、アプリ全体が止まらないようにする
         return jsonify({
             "channelId": channel_id,
             "lastUploadDate": None
@@ -223,4 +239,5 @@ def bulk_delete_subscriptions():
     return jsonify({"successCount": success_count, "failCount": fail_count})
 
 if __name__ == '__main__':
+    # ローカル実行時は5000ポートを使用
     app.run(debug=True, port=5000)
