@@ -9,24 +9,16 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 # .envファイルから環境変数を読み込む
 load_dotenv()
 
-# --- アプリケーション設定 ---
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
-# Renderなどの本番環境でのHTTPS対応用
+# 本番環境でのHTTPS対応
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
-# Googleが余分なスコープを返してきてもエラーにしない設定
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
-# --- Google API 設定 ---
 API_SERVICE_NAME = "youtube"
 API_VERSION = "v3"
-
-SCOPES = [
-    "https://www.googleapis.com/auth/youtube",
-    "https://www.googleapis.com/auth/youtube.readonly"
-]
+SCOPES = ["https://www.googleapis.com/auth/youtube", "https://www.googleapis.com/auth/youtube.readonly"]
 
 CLIENT_SECRETS_FILE = {
     "web": {
@@ -39,52 +31,34 @@ CLIENT_SECRETS_FILE = {
     }
 }
 
-# --- ヘルパー関数 ---
 def build_youtube_service():
-    """セッション情報からYouTube APIサービスを構築する"""
     if 'credentials' not in session:
         return None
     from google.oauth2.credentials import Credentials
     credentials = Credentials(**session['credentials'])
-    return googleapiclient.discovery.build(
-        API_SERVICE_NAME, API_VERSION, credentials=credentials)
+    return googleapiclient.discovery.build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
-# --- フロントエンド提供ルート ---
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
 
-# --- 認証ルート ---
 @app.route('/auth/google')
 def auth_google():
-    """Googleへの認証を開始する"""
-    flow = google_auth_oauthlib.flow.Flow.from_client_config(
-        CLIENT_SECRETS_FILE, scopes=SCOPES)
-    
+    flow = google_auth_oauthlib.flow.Flow.from_client_config(CLIENT_SECRETS_FILE, scopes=SCOPES)
     flow.redirect_uri = url_for('auth_callback', _external=True)
-    
-    authorization_url, state = flow.authorization_url(
-        access_type='offline',
-        include_granted_scopes='true'
-    )
+    authorization_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true')
     session['state'] = state
     return redirect(authorization_url)
 
 @app.route('/auth/callback')
 def auth_callback():
-    """Googleからのコールバックを処理する"""
-    state = session.get('state')
-    flow = google_auth_oauthlib.flow.Flow.from_client_config(
-        CLIENT_SECRETS_FILE, scopes=SCOPES, state=state)
-    
+    state = session['state']
+    flow = google_auth_oauthlib.flow.Flow.from_client_config(CLIENT_SECRETS_FILE, scopes=SCOPES, state=state)
     flow.redirect_uri = url_for('auth_callback', _external=True)
-
     authorization_response = request.url
     if authorization_response.startswith('http:'):
         authorization_response = authorization_response.replace('http:', 'https:', 1)
-
     flow.fetch_token(authorization_response=authorization_response)
-
     credentials = flow.credentials
     session['credentials'] = {
         'token': credentials.token,
@@ -98,7 +72,6 @@ def auth_callback():
 
 @app.route('/logout')
 def logout():
-    """セッションをクリアしてログアウトする"""
     session.clear()
     return redirect(url_for('index'))
 
@@ -108,136 +81,89 @@ def auth_status():
         return jsonify({"status": "authenticated"})
     return jsonify({"error": "Not authenticated"}), 401
 
-# --- APIエンドポイント ---
-
 @app.route('/api/all-channels')
 def get_all_channels():
-    """全登録チャンネルをループ処理で確実に取得する"""
     youtube = build_youtube_service()
     if not youtube:
         return jsonify({"error": "Not authenticated"}), 401
-
     all_subscriptions = []
     next_page_token = None
-    
     try:
         while True:
-            # 1リクエスト最大50件取得
-            request_api = youtube.subscriptions().list(
+            # 変数名を api_request に変更して衝突を回避
+            api_request = youtube.subscriptions().list(
                 part="snippet",
                 mine=True,
                 maxResults=50,
                 pageToken=next_page_token
             )
-            response = request_api.execute()
-
+            response = api_request.execute()
             for item in response.get("items", []):
                 all_subscriptions.append({
                     "subscriptionId": item["id"],
                     "channelId": item["snippet"]["resourceId"]["channelId"],
                     "channelName": item["snippet"]["title"],
                     "thumbnailUrl": item["snippet"]["thumbnails"]["default"]["url"],
-                    "lastUploadDate": "pending",
+                    "lastUploadDate": "pending", # HTML側が期待するキー名
                     "isSubscribed": True,
                 })
-
-            # 次のページがあるか確認
             next_page_token = response.get("nextPageToken")
             if not next_page_token:
                 break
-                
         return jsonify(all_subscriptions)
-
-    except googleapiclient.errors.HttpError as e:
-        # 途中でエラーが起きても、そこまでに取得できたリストがあればそれを返す
-        if all_subscriptions:
-            return jsonify(all_subscriptions)
-        return jsonify({"message": f"An API error occurred: {e}"}), 500
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_channel():
-    """特定チャンネルの最新動画投稿日を取得する"""
     youtube = build_youtube_service()
     if not youtube:
         return jsonify({"error": "Not authenticated"}), 401
-
     data = request.get_json()
     channel_id = data.get('channelId')
-    if not channel_id:
-        return jsonify({"message": "channelId is required"}), 400
-
     try:
-        # チャンネルの「アップロード済み動画」プレイリストIDを取得
-        channel_request = youtube.channels().list(
-            part="contentDetails",
-            id=channel_id
-        )
-        channel_response = channel_request.execute()
-        
-        if not channel_response.get("items"):
+        channel_resp = youtube.channels().list(part="contentDetails", id=channel_id).execute()
+        if not channel_resp.get("items"):
             return jsonify({"channelId": channel_id, "lastUploadDate": None})
-
-        uploads_playlist_id = channel_response["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
-
-        # そのプレイリストから最新1件の動画を取得
-        playlist_request = youtube.playlistItems().list(
-            part="snippet",
-            playlistId=uploads_playlist_id,
-            maxResults=1
-        )
-        playlist_response = playlist_request.execute()
-
-        last_upload_date = None
-        if playlist_response.get("items"):
-            last_upload_date = playlist_response["items"][0]["snippet"]["publishedAt"]
-
+        
+        playlist_id = channel_resp["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+        playlist_resp = youtube.playlistItems().list(part="snippet", playlistId=playlist_id, maxResults=1).execute()
+        
+        last_date = None
+        if playlist_resp.get("items"):
+            last_date = playlist_resp["items"][0]["snippet"]["publishedAt"]
+        
+        # HTML側 JavaScript (apiClient.analyzeChannel) は 'lastUploadDate' を期待している
         return jsonify({
             "channelId": channel_id,
-            "lastUploadDate": last_upload_date
+            "lastUploadDate": last_date 
         })
-    except Exception as e:
-        # 分析エラー時は日付をNoneにして返し、アプリ全体が止まらないようにする
-        return jsonify({
-            "channelId": channel_id,
-            "lastUploadDate": None
-        })
+    except Exception:
+        return jsonify({"channelId": channel_id, "lastUploadDate": None})
 
 @app.route('/api/subscriptions/<subscription_id>', methods=['DELETE'])
 def delete_subscription(subscription_id):
     youtube = build_youtube_service()
-    if not youtube:
-        return jsonify({"error": "Not authenticated"}), 401
+    if not youtube: return jsonify({"error": "Not authenticated"}), 401
     try:
         youtube.subscriptions().delete(id=subscription_id).execute()
         return jsonify({"status": "success"}), 200
-    except googleapiclient.errors.HttpError as e:
-        return jsonify({"message": f"Failed to unsubscribe: {e}"}), 500
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
 
 @app.route('/api/subscriptions/bulk-delete', methods=['POST'])
 def bulk_delete_subscriptions():
     youtube = build_youtube_service()
-    if not youtube:
-        return jsonify({"error": "Not authenticated"}), 401
-
-    data = request.get_json()
-    subscription_ids = data.get('subscriptionIds', [])
-    if not subscription_ids:
-        return jsonify({"message": "subscriptionIds are required"}), 400
-
-    success_count = 0
-    fail_count = 0
-
-    for sub_id in subscription_ids:
+    if not youtube: return jsonify({"error": "Not authenticated"}), 401
+    sub_ids = request.get_json().get('subscriptionIds', [])
+    success, fail = 0, 0
+    for sid in sub_ids:
         try:
-            youtube.subscriptions().delete(id=sub_id).execute()
-            success_count += 1
-        except googleapiclient.errors.HttpError:
-            fail_count += 1
-
-    return jsonify({"successCount": success_count, "failCount": fail_count})
+            youtube.subscriptions().delete(id=sid).execute()
+            success += 1
+        except:
+            fail += 1
+    return jsonify({"successCount": success, "failCount": fail})
 
 if __name__ == '__main__':
-    # ローカル実行時は5000ポートを使用
     app.run(debug=True, port=5000)
