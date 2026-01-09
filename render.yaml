@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: youtube-analyzer
+    name: sub-cleaner-app  # "youtube-analyzer" から変更
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
