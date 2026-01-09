@@ -20,7 +20,6 @@ os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 API_SERVICE_NAME = "youtube"
 API_VERSION = "v3"
 
-# 読み取り専用スコープを優先（セキュリティ的に望ましい）
 SCOPES = [
     "https://www.googleapis.com/auth/youtube",
     "https://www.googleapis.com/auth/youtube.readonly"
@@ -33,8 +32,7 @@ CLIENT_SECRETS_FILE = {
         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
         "token_uri": "https://oauth2.googleapis.com/token",
         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        # ここはデプロイ環境に合わせて動的に決まるため、コード内での固定は避けるか正しいURIを入れる
-        "redirect_uris": [os.getenv("REDIRECT_URI", "http://127.0.0.1:5000/auth/callback")]
+        "redirect_uris": [os.getenv("REDIRECT_URI", "http://127.0.0.1:5000/auth/callback")] 
     }
 }
 
@@ -55,14 +53,11 @@ def index():
 def auth_google():
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
         CLIENT_SECRETS_FILE, scopes=SCOPES)
-    
-    # 外部URL（https）を正しく認識させるため _external=True を使用
     flow.redirect_uri = url_for('auth_callback', _external=True)
-    
     authorization_url, state = flow.authorization_url(
         access_type='offline',
         include_granted_scopes='true',
-        prompt='consent' # 再ログイン時に確実に認証画面を出す（審査時に推奨される）
+        prompt='consent' # 審査を通しやすくするために追加
     )
     session['state'] = state
     return redirect(authorization_url)
@@ -72,16 +67,13 @@ def auth_callback():
     state = session.get('state')
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
         CLIENT_SECRETS_FILE, scopes=SCOPES, state=state)
-    
     flow.redirect_uri = url_for('auth_callback', _external=True)
 
     authorization_response = request.url
-    # 本番環境(Render)でのhttps化を強制
     if authorization_response.startswith('http:'):
         authorization_response = authorization_response.replace('http:', 'https:', 1)
 
     flow.fetch_token(authorization_response=authorization_response)
-
     credentials = flow.credentials
     session['credentials'] = {
         'token': credentials.token,
@@ -93,8 +85,7 @@ def auth_callback():
     }
     return redirect(url_for('index'))
 
-# URLを index.html 内の呼び出し (/auth/logout) と一致させる
-@app.route('/auth/logout')
+@app.route('/auth/logout') # index.htmlの呼び出しに合わせました
 def logout():
     session.clear()
     return redirect(url_for('index'))
@@ -105,11 +96,81 @@ def auth_status():
         return jsonify({"status": "authenticated"})
     return jsonify({"error": "Not authenticated"}), 401
 
-# --- APIエンドポイント (中身は同じなので維持) ---
-# ... (get_all_channels, analyze_channel, bulk_delete_subscriptions 等)
-# ... ※変更がないため省略しますが、実ファイルではそのまま残してください。
+# --- APIエンドポイント (ここも全部含めました) ---
+@app.route('/api/all-channels')
+def get_all_channels():
+    youtube = build_youtube_service()
+    if not youtube:
+        return jsonify({"error": "Not authenticated"}), 401
+    all_subscriptions = []
+    next_page_token = None
+    try:
+        while True:
+            req = youtube.subscriptions().list(
+                part="snippet",
+                mine=True,
+                maxResults=50,
+                pageToken=next_page_token
+            )
+            response = req.execute()
+            for item in response.get("items", []):
+                all_subscriptions.append({
+                    "subscriptionId": item["id"],
+                    "channelId": item["snippet"]["resourceId"]["channelId"],
+                    "title": item["snippet"]["title"],
+                    "thumbnails": item["snippet"]["thumbnails"]["default"]["url"],
+                    "lastUploadDate": "pending",
+                    "isSubscribed": True,
+                })
+            next_page_token = response.get("nextPageToken")
+            if not next_page_token:
+                break
+        return jsonify(all_subscriptions)
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
+
+@app.route('/api/analyze', methods=['POST'])
+def analyze_channel():
+    youtube = build_youtube_service()
+    if not youtube:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json()
+    channel_id = data.get('channelId')
+    try:
+        channel_response = youtube.channels().list(
+            part="contentDetails", id=channel_id
+        ).execute()
+        if not channel_response.get("items"):
+            return jsonify({"channelId": channel_id, "lastUploadDate": None})
+        
+        uploads_id = channel_response["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
+        playlist_response = youtube.playlistItems().list(
+            part="snippet", playlistId=uploads_id, maxResults=1
+        ).execute()
+        
+        last_date = None
+        if playlist_response.get("items"):
+            last_date = playlist_response["items"][0]["snippet"]["publishedAt"]
+        return jsonify({"channelId": channel_id, "lastUploadDate": last_date})
+    except:
+        return jsonify({"channelId": channel_id, "lastUploadDate": None})
+
+@app.route('/api/subscriptions/bulk-delete', methods=['POST'])
+def bulk_delete_subscriptions():
+    youtube = build_youtube_service()
+    if not youtube:
+        return jsonify({"error": "Not authenticated"}), 401
+    data = request.get_json()
+    ids = data.get('subscriptionIds', [])
+    success, fail = 0, 0
+    for sub_id in ids:
+        try:
+            youtube.subscriptions().delete(id=sub_id).execute()
+            success += 1
+        except:
+            fail += 1
+    return jsonify({"successCount": success, "failCount": fail})
 
 if __name__ == '__main__':
-    # 開発環境でOAuthを動かすために必要
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
     app.run(debug=True, port=5000)
