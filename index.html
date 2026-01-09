@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SubCleaner</title>
+    <title>SubCleaner - 登録チャンネル整理ツール</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
@@ -16,649 +16,212 @@
             --border-color: #3f3f3f;
             --success-color: #4caf50;
             --error-color: #f44336;
-            --warning-color: #ff9800;
-            --button-blue-color: #3ea6ff;
             --button-gray-color: #5a5a5a;
-            --hover-bg: #3f3f3f;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            font-family: 'Roboto', Arial, sans-serif;
             background-color: var(--background-color);
             color: var(--primary-text-color);
             line-height: 1.6;
             padding: 20px;
-            min-height: 100vh;
         }
 
-        header {
-            text-align: center;
-            margin-bottom: 40px;
-            position: relative;
-        }
-
-        h1 {
-            color: var(--primary-text-color);
-            font-size: 2em;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-
-        .logout-container {
-            position: absolute;
-            top: 0;
-            right: 20px;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: auto;
-            background-color: var(--surface-color);
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-        }
-
-        .section-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.3em;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-
-        .section-title i {
-            color: var(--accent-color);
-        }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-
-        .card {
-            background-color: var(--card-color);
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(62, 166, 255, 0.2);
-        }
-
-        .card h3 {
-            font-size: 0.9em;
-            color: var(--secondary-text-color);
-            margin-bottom: 10px;
-            font-weight: 400;
-            text-transform: uppercase;
-        }
-
-        .card p {
-            font-size: 2em;
-            font-weight: 700;
-        }
-
-        .card.inactive-card { border-left: 4px solid var(--error-color); }
-        .card.active-card { border-left: 4px solid var(--success-color); }
-        .card.pending-card { border-left: 4px solid var(--accent-color); }
-
-        .action-section {
-            background-color: var(--card-color);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            border: 1px solid var(--border-color);
-        }
-
-        .action-buttons-row {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: center;
-            margin-top: 15px;
-        }
-
-        .filter-section {
-            background-color: var(--card-color);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            border: 1px solid var(--border-color);
-        }
-
-        .slider-container {
-            margin-top: 15px;
-            position: relative;
-        }
-
-        .slider-label {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            color: var(--secondary-text-color);
-            font-size: 0.9em;
-        }
-
-        .slider-value {
-            color: var(--accent-color);
-            font-weight: bold;
-            font-size: 1.1em;
-        }
-
-        .slider-wrapper {
-            position: relative;
-            width: 100%;
-            height: 24px;
-            display: flex;
-            align-items: center;
-        }
-
-        input[type="range"] {
-            width: 100%;
-            height: 4px;
-            border-radius: 2px;
-            background: var(--border-color);
-            outline: none;
-            -webkit-appearance: none;
-            cursor: pointer;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: var(--accent-color);
-            cursor: pointer;
-        }
-
-        .slider-progress {
-            position: absolute;
-            height: 4px;
-            background: var(--accent-color);
-            border-radius: 2px;
-            pointer-events: none;
-            left: 0;
-        }
-
-        .filter-tabs {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            flex-wrap: wrap;
-        }
-
-        .filter-tab {
-            padding: 8px 16px;
-            border-radius: 20px;
-            background-color: var(--button-gray-color);
-            color: var(--primary-text-color);
-            border: none;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: all 0.2s;
-        }
-
-        .filter-tab.active {
-            background-color: var(--accent-color);
-            font-weight: 500;
-        }
-
-        .channel-list {
-            margin-top: 20px;
-        }
-
-        .channel-list-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: var(--card-color);
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-        }
-
-        .channel-item {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            border-bottom: 1px solid var(--border-color);
-            background-color: var(--card-color);
-            margin-bottom: 8px;
-            border-radius: 8px;
-        }
-
-        .channel-item.unsubscribed {
-            opacity: 0.6;
-            background-color: #1a1a1a;
-        }
-
-        /* リンクのスタイル */
-        .channel-link {
-            display: flex;
-            align-items: center;
-            flex-grow: 1;
-            text-decoration: none;
-            color: inherit;
-            transition: opacity 0.2s;
-        }
-
-        .channel-link:hover {
-            opacity: 0.8;
-        }
-
-        .channel-item img {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            margin-right: 15px;
-            object-fit: cover;
-        }
-
-        .channel-info { flex-grow: 1; }
-        .channel-info h4 { font-size: 1em; margin-bottom: 4px; }
-
-        .status-badge {
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 0.75em;
-            margin-left: 10px;
-            white-space: nowrap;
-        }
-
-        .status-active { background-color: rgba(76, 175, 80, 0.2); color: var(--success-color); }
-        .status-inactive { background-color: rgba(244, 67, 54, 0.2); color: var(--error-color); }
-        .status-pending { background-color: rgba(90, 90, 90, 0.3); color: var(--secondary-text-color); }
-
-        button {
-            padding: 10px 18px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
+        /* Google公式準拠のログインボタン */
+        .google-btn {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            font-size: 0.9em;
+            background-color: #ffffff;
+            color: #757575;
+            padding: 0;
+            border-radius: 2px;
+            text-decoration: none;
+            font-family: 'Roboto', sans-serif;
+            font-weight: 500;
+            border: 1px solid #dadce0;
+            transition: box-shadow .2s;
         }
+        .google-btn:hover { box-shadow: 0 1px 2px 0 rgba(60,64,67,0.30), 0 1px 3px 1px rgba(60,64,67,0.15); }
+        .google-icon-wrapper { padding: 12px; }
+        .google-btn-text { padding: 12px 16px; font-size: 14px; border-left: 1px solid #dadce0; }
 
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .container { max-width: 1000px; margin: auto; background-color: var(--surface-color); padding: 30px; border-radius: 12px; }
+        header { text-align: center; margin-bottom: 40px; }
+        
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .card { background-color: var(--card-color); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .card p { font-size: 2em; font-weight: 700; }
 
-        .btn-primary { background-color: var(--button-blue-color); color: #000; }
-        .btn-danger { background-color: var(--error-color); color: var(--primary-text-color); }
-        .btn-secondary { background-color: var(--button-gray-color); color: var(--primary-text-color); }
-
-        #login-section {
-            text-align: center;
-            padding: 80px 50px;
-            background-color: var(--card-color);
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
+        .channel-item {
+            display: flex; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color);
+            background-color: var(--card-color); margin-bottom: 8px; border-radius: 8px;
         }
+        .channel-link { display: flex; align-items: center; flex-grow: 1; text-decoration: none; color: inherit; transition: opacity 0.2s; }
+        .channel-link:hover { opacity: 0.7; }
+        .channel-item img { width: 44px; height: 44px; border-radius: 50%; margin-right: 15px; }
 
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75em; margin-left: 10px; }
+        .status-active { color: var(--success-color); border: 1px solid var(--success-color); }
+        .status-inactive { color: var(--error-color); border: 1px solid var(--error-color); }
+        
         .loading-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 1000; color: var(--primary-text-color);
-            opacity: 0; visibility: hidden; transition: opacity 0.3s;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000;
         }
-
-        .loading-overlay.visible { opacity: 1; visibility: visible; }
+        .visible { display: flex; }
 
         #toast {
-            visibility: hidden; min-width: 300px; background-color: var(--card-color);
-            color: var(--primary-text-color); text-align: center; border-radius: 8px;
-            padding: 16px 24px; position: fixed; z-index: 10; right: 30px; bottom: 30px;
-            border: 1px solid var(--border-color);
+            visibility: hidden; position: fixed; bottom: 30px; right: 30px;
+            background: var(--card-color); padding: 16px; border-radius: 8px; border: 1px solid var(--accent-color);
         }
-
-        #toast.show { visibility: visible; animation: slideIn 0.3s forwards; }
-
-        @keyframes slideIn { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
-
-        #compliance-info {
-            max-width: 1400px; margin: 50px auto 20px auto; padding: 30px;
-            background-color: var(--surface-color); border-radius: 12px; border: 1px solid var(--border-color);
-        }
-        #compliance-info h2 { border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px; }
-        #compliance-info a { color: var(--accent-color); text-decoration: none; }
-        #compliance-info ul { list-style: none; padding: 0; }
-        #compliance-info li { padding: 8px 20px; position: relative; }
-        #compliance-info li:before { content: "•"; color: var(--accent-color); position: absolute; left: 0; }
+        #toast.show { visibility: visible; animation: fadeInUp 0.3s; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
     <header>
         <h1>SubCleaner</h1>
-        <p>登録チャンネルを分析して、最適な購読リストを保ちましょう。</p>
-        <div class="logout-container" id="logout-container" style="display: none;">
-            <button id="logout-btn" class="btn-secondary">
-                <i class="fas fa-sign-out-alt"></i> ログアウト
-            </button>
-        </div>
+        <p>活動休止中のチャンネルを見つけて整理しましょう</p>
     </header>
 
     <div class="container">
-        <div id="login-section">
-            <h2>アカウントを連携して分析を開始</h2>
-            <p>「Googleでログイン」をクリックして、YouTubeのチャンネル登録情報の整理を開始します。<br>
-            本アプリがユーザーの許可なく勝手に登録解除を行うことはありません。</p>
-            <br>
-            <a href="/auth/google" class="btn-primary" style="text-decoration: none; padding: 14px 28px;">
-                <i class="fab fa-google"></i> Googleでログインして開始
+        <div id="login-section" style="text-align: center; padding: 40px 0;">
+            <p style="margin-bottom: 25px;">YouTubeの登録状況を分析するためにGoogleアカウントでログインしてください。</p>
+            <a href="/auth/google" class="google-btn">
+                <div class="google-icon-wrapper">
+                    <img width="18" height="18" src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Reference_Logo.svg"/>
+                </div>
+                <span class="google-btn-text">Google アカウントでログイン</span>
             </a>
         </div>
-        
+
         <div id="app-section" style="display: none;">
-            <div class="section-title"><i class="fas fa-chart-pie"></i> 統計サマリー</div>
             <div id="dashboard" class="dashboard-grid">
-                <div class="card"><h3>登録中</h3><p id="count-subscribed">0</p></div>
-                <div class="card inactive-card"><h3>活動休止中</h3><p id="count-inactive">0</p></div>
-                <div class="card pending-card"><h3>分析待ち</h3><p id="count-pending">0</p></div>
+                <div class="card"><h3>登録数</h3><p id="count-subscribed">0</p></div>
+                <div class="card"><h3>休止中</h3><p id="count-inactive" style="color: var(--error-color);">0</p></div>
+                <div class="card"><h3>分析待ち</h3><p id="count-pending">0</p></div>
             </div>
 
-            <div class="section-title"><i class="fas fa-tasks"></i> おすすめアクション</div>
-            <div class="action-section">
-                <p style="color: var(--secondary-text-color); margin-bottom: 5px;"><span id="recommendation-count">0</span> 件が分析待ちです。</p>
-                <div class="action-buttons-row">
-                    <button id="bulk-analyze-btn" class="btn-primary" disabled><i class="fas fa-chart-line"></i> 活動状況の分析を開始</button>
-                    <button id="cancel-analyze-btn" class="btn-secondary" style="display: none;"><i class="fas fa-stop"></i> 分析を中断</button>
-                    <button id="bulk-unsubscribe-btn" class="btn-danger" disabled><i class="fas fa-trash"></i> 選択したチャンネルを解除</button>
-                    <span id="bulk-action-status" style="color: var(--secondary-text-color);"></span>
-                </div>
+            <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+                <button id="bulk-analyze-btn" style="background: var(--accent-color); color: #000; padding: 10px 20px; border-radius: 5px; border:none; cursor:pointer; font-weight: bold;">
+                    <i class="fas fa-search"></i> 分析を開始
+                </button>
+                <button id="bulk-unsubscribe-btn" disabled style="background: var(--error-color); color: #fff; padding: 10px 20px; border-radius: 5px; border:none; cursor:pointer;">
+                    <i class="fas fa-trash"></i> 選択した項目を解除
+                </button>
             </div>
 
-            <div class="section-title"><i class="fas fa-sliders-h"></i> 活動休止の基準</div>
-            <div class="filter-section">
-                <div class="slider-container">
-                    <div class="slider-label"><span>最終投稿からの日数</span><span class="slider-value"><span id="threshold-display">60</span> 日以上</span></div>
-                    <div class="slider-wrapper">
-                        <input type="range" id="inactive-threshold-slider" min="30" max="365" value="60">
-                        <div class="slider-progress" id="slider-progress" style="width: 8.95%;"></div>
-                    </div>
-                </div>
-                <div class="filter-tabs">
-                    <button class="filter-tab active" data-filter="all">すべて</button>
-                    <button class="filter-tab" data-filter="inactive">活動休止中</button>
-                    <button class="filter-tab" data-filter="active">活動中</button>
-                    <button class="filter-tab" data-filter="pending">分析待ち</button>
-                    <button class="filter-tab" data-filter="unsubscribed">解除済み</button>
-                </div>
-            </div>
-            
-            <div class="channel-list">
-                <div class="section-title"><i class="fas fa-list"></i> 登録チャンネル一覧 (<span id="channel-count">0</span>件)</div>
-                <div class="channel-list-header">
-                    <div class="select-all-container">
-                        <input type="checkbox" id="select-all-checkbox">
-                        <label for="select-all-checkbox">すべて選択</label>
-                    </div>
-                </div>
-                <div id="channel-items-container"></div>
-            </div>
+            <div id="channel-items-container"></div>
         </div>
     </div>
 
-    <div id="compliance-info">
-        <h2>プライバシーおよび利用規約</h2>
-        <p>本アプリ「SubCleaner」は、YouTube APIサービスを利用しています。</p>
-        <p>利用することで <a href="https://www.youtube.com/t/terms" target="_blank">YouTube 利用規約</a> と <a href="http://www.google.com/policies/privacy" target="_blank">Google プライバシーポリシー</a>に同意したものとみなされます。</p>
-        
-        <h3>アクセスおよび収集するデータ</h3>
-        <ul>
-            <li><strong>YouTubeチャンネル登録情報:</strong> チャンネルID、タイトル、サムネイル</li>
-            <li><strong>動画投稿情報:</strong> 登録チャンネルの最新動画公開日時</li>
-        </ul>
-        
-        <h3>利用目的</h3>
-        <p>これらのデータは、ユーザーの視聴習慣を分析し、活動休止中のチャンネルを特定するためにのみ使用され、第三者と共有されることはありません。また、サーバー側に永続的に保存されることもありません。</p>
-
-        <h3>データの削除方法</h3>
-        <p>ブラウザを閉じるかログアウトすることでデータは破棄されます。また、Googleのセキュリティ設定からいつでもアクセス権を取り消せます：<br>
-        <a href="https://myaccount.google.com/connections" target="_blank">Googleセキュリティ設定へ</a></p>
-        
-        <p style="margin-top:20px;">お問い合わせ: tsukikage1258@gmail.com</p>
-    </div>
-
-    <div id="toast"></div>
     <div class="loading-overlay" id="loading-overlay">
-        <i class="fas fa-spinner fa-spin" style="font-size: 3em; margin-bottom: 20px;"></i>
-        <div id="progress-text">読み込み中...</div>
+        <i class="fas fa-spinner fa-spin" style="font-size: 3em; color: var(--accent-color);"></i>
+        <p id="progress-text" style="margin-top: 20px;"></p>
     </div>
+    <div id="toast"></div>
 
     <script>
-        const apiClient = {
-            baseUrl: '',
-            async checkAuthStatus() {
-                try {
-                    const response = await fetch(`${this.baseUrl}/api/auth/status`);
-                    return response.status === 200;
-                } catch { return false; }
-            },
-            async getAllChannels() {
-                const response = await fetch(`${this.baseUrl}/api/all-channels`);
-                if (!response.ok) throw new Error('取得失敗');
-                return response.json();
-            },
-            async analyzeChannel(channelId) {
-                const response = await fetch(`${this.baseUrl}/api/analyze`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ channelId })
-                });
-                return response.json();
-            },
-            async bulkDeleteSubscriptions(subscriptionIds) {
-                const response = await fetch(`${this.baseUrl}/api/subscriptions/bulk-delete`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ subscriptionIds })
-                });
-                return response.json();
-            }
-        };
-
         let allChannels = [];
-        let currentFilter = 'all';
         let isAnalyzing = false;
 
-        function showLoading(msg = '') {
-            document.getElementById('loading-overlay').classList.add('visible');
-            document.getElementById('progress-text').textContent = msg;
-        }
-        function hideLoading() { document.getElementById('loading-overlay').classList.remove('visible'); }
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.textContent = msg; t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 3000);
-        }
+        async function analyzeChannels() {
+            const targets = allChannels.filter(c => c.lastUploadDate === 'pending');
+            if (targets.length === 0) return;
 
-        function updateDashboard() {
-            const threshold = parseInt(document.getElementById('inactive-threshold-slider').value);
-            const subscribed = allChannels.filter(c => c.isSubscribed);
-            const pending = subscribed.filter(c => c.lastUploadDate === 'pending').length;
-            
-            let inactiveCount = 0;
-            subscribed.forEach(c => {
-                if (c.lastUploadDate !== 'pending' && c.lastUploadDate !== 'none') {
-                    const diff = (new Date() - new Date(c.lastUploadDate)) / (1000*60*60*24);
-                    if (diff >= threshold) inactiveCount++;
+            isAnalyzing = true;
+            document.getElementById('bulk-analyze-btn').disabled = true;
+
+            for (let i = 0; i < targets.length; i++) {
+                if (!isAnalyzing) break;
+                
+                const c = targets[i];
+                document.getElementById('progress-text').textContent = `分析中 (${i+1}/${targets.length}): ${c.title}`;
+                
+                try {
+                    const response = await fetch('/api/analyze', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ channelId: c.channelId })
+                    });
+                    
+                    if (response.status === 403) {
+                        alert("APIの利用制限（Quota）に達しました。明日までお待ちください。");
+                        break;
+                    }
+
+                    const res = await response.json();
+                    c.lastUploadDate = res.lastUploadDate || 'none';
+                    
+                    // 負荷軽減のための待機 (500ms)
+                    await new Promise(r => setTimeout(r, 500));
+                    
+                    updateDashboard();
+                    renderChannels();
+                } catch (e) {
+                    console.error("Analysis failed", e);
                 }
-            });
-
-            document.getElementById('count-subscribed').textContent = subscribed.length;
-            document.getElementById('count-inactive').textContent = inactiveCount;
-            document.getElementById('count-pending').textContent = pending;
-            document.getElementById('recommendation-count').textContent = pending;
-            document.getElementById('bulk-analyze-btn').disabled = pending === 0 || isAnalyzing;
+            }
+            isAnalyzing = false;
+            document.getElementById('bulk-analyze-btn').disabled = false;
+            document.getElementById('progress-text').textContent = "";
         }
 
         function renderChannels() {
             const container = document.getElementById('channel-items-container');
-            const threshold = parseInt(document.getElementById('inactive-threshold-slider').value);
             container.innerHTML = '';
-
-            const filtered = allChannels.filter(c => {
-                if (currentFilter === 'all') return true;
-                if (currentFilter === 'unsubscribed') return !c.isSubscribed;
-                if (!c.isSubscribed) return false;
-                if (currentFilter === 'pending') return c.lastUploadDate === 'pending';
-                
-                if (c.lastUploadDate === 'pending') return false;
-                const isInactive = c.lastUploadDate !== 'none' && 
-                                   (new Date() - new Date(c.lastUploadDate)) / (1000*60*60*24) >= threshold;
-                return currentFilter === 'inactive' ? isInactive : !isInactive;
-            });
-
-            document.getElementById('channel-count').textContent = filtered.length;
-
-            filtered.forEach(c => {
+            
+            allChannels.forEach(c => {
                 const item = document.createElement('div');
-                item.className = `channel-item ${!c.isSubscribed ? 'unsubscribed' : ''}`;
+                item.className = 'channel-item';
                 
-                let statusHtml = '';
-                if (!c.isSubscribed) statusHtml = '<span class="status-badge status-pending">解除済み</span>';
-                else if (c.lastUploadDate === 'pending') statusHtml = '<span class="status-badge status-pending">分析待ち</span>';
-                else if (c.lastUploadDate === 'none') statusHtml = '<span class="status-badge status-inactive">動画なし</span>';
+                let status = '';
+                if (c.lastUploadDate === 'pending') status = '<span class="status-badge">分析待ち</span>';
+                else if (c.lastUploadDate === 'none') status = '<span class="status-badge status-inactive">投稿なし</span>';
                 else {
-                    const diff = Math.floor((new Date() - new Date(c.lastUploadDate)) / (1000*60*60*24));
-                    const isInact = diff >= threshold;
-                    statusHtml = `<span class="status-badge ${isInact ? 'status-inactive' : 'status-active'}">${isInact ? '休止中' : '活動中'} (${diff}日前)</span>`;
+                    const days = Math.floor((new Date() - new Date(c.lastUploadDate))/(1000*60*60*24));
+                    status = `<span class="status-badge ${days > 60 ? 'status-inactive' : 'status-active'}">${days}日前に投稿</span>`;
                 }
 
-                // チャンネルURLの生成
-                const channelUrl = `https://www.youtube.com/channel/${c.channelId}`;
-
                 item.innerHTML = `
-                    <input type="checkbox" class="channel-checkbox" value="${c.subscriptionId}" ${!c.isSubscribed ? 'disabled' : ''}>
-                    <a href="${channelUrl}" target="_blank" class="channel-link">
-                        <img src="${c.thumbnails}" alt="">
-                        <div class="channel-info">
-                            <h4>${c.title}</h4>
-                        </div>
+                    <input type="checkbox" class="channel-checkbox" value="${c.subscriptionId}">
+                    <a href="https://www.youtube.com/channel/${c.channelId}" target="_blank" class="channel-link">
+                        <img src="${c.thumbnails}">
+                        <div><strong>${c.title}</strong></div>
                     </a>
-                    ${statusHtml}
+                    ${status}
                 `;
                 container.appendChild(item);
             });
         }
 
-        async function startAnalysis() {
-            const targets = allChannels.filter(c => c.isSubscribed && c.lastUploadDate === 'pending');
-            if (targets.length === 0) return;
-
-            isAnalyzing = true;
-            document.getElementById('bulk-analyze-btn').disabled = true;
-            document.getElementById('cancel-analyze-btn').style.display = 'inline-flex';
-
-            for (let i = 0; i < targets.length; i++) {
-                if (!isAnalyzing) break;
-                const c = targets[i];
-                document.getElementById('bulk-action-status').textContent = `分析中: ${i+1}/${targets.length}`;
-                try {
-                    const res = await apiClient.analyzeChannel(c.channelId);
-                    c.lastUploadDate = res.lastUploadDate || 'none';
-                    updateDashboard();
-                    renderChannels();
-                } catch (e) { console.error(e); }
-            }
-            stopAnalysis();
+        function updateDashboard() {
+            document.getElementById('count-subscribed').textContent = allChannels.length;
+            document.getElementById('count-pending').textContent = allChannels.filter(c => c.lastUploadDate === 'pending').length;
+            // 休止中（60日以上）のカウント
+            const inactive = allChannels.filter(c => {
+                if (c.lastUploadDate === 'pending' || c.lastUploadDate === 'none') return false;
+                return (new Date() - new Date(c.lastUploadDate))/(1000*60*60*24) > 60;
+            }).length;
+            document.getElementById('count-inactive').textContent = inactive;
         }
 
-        function stopAnalysis() {
-            isAnalyzing = false;
-            document.getElementById('cancel-analyze-btn').style.display = 'none';
-            document.getElementById('bulk-action-status').textContent = '';
-            updateDashboard();
-        }
-
+        // 初期化処理
         document.addEventListener('DOMContentLoaded', async () => {
-            const authed = await apiClient.checkAuthStatus();
-            if (authed) {
+            const res = await fetch('/api/auth/status');
+            if (res.ok) {
                 document.getElementById('login-section').style.display = 'none';
                 document.getElementById('app-section').style.display = 'block';
-                document.getElementById('logout-container').style.display = 'block';
                 
-                showLoading('チャンネル一覧を取得中...');
-                try {
-                    allChannels = await apiClient.getAllChannels();
-                    hideLoading();
-                    renderChannels();
-                    updateDashboard();
-                } catch (e) {
-                    hideLoading();
-                    alert("データの取得に失敗しました。再ログインしてください。");
-                }
-            }
-
-            document.getElementById('bulk-analyze-btn').addEventListener('click', startAnalysis);
-            document.getElementById('cancel-analyze-btn').addEventListener('click', () => isAnalyzing = false);
-
-            document.getElementById('inactive-threshold-slider').addEventListener('input', (e) => {
-                const val = e.target.value;
-                document.getElementById('threshold-display').textContent = val;
-                const percent = ((val - 30) / (365 - 30)) * 100;
-                document.getElementById('slider-progress').style.width = percent + '%';
-                updateDashboard();
+                const chanRes = await fetch('/api/all-channels');
+                allChannels = await chanRes.json();
                 renderChannels();
-            });
-
-            document.querySelectorAll('.filter-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    document.querySelector('.filter-tab.active').classList.remove('active');
-                    tab.classList.add('active');
-                    currentFilter = tab.dataset.filter;
-                    renderChannels();
-                });
-            });
-
-            document.getElementById('select-all-checkbox').addEventListener('change', (e) => {
-                document.querySelectorAll('.channel-checkbox:not(:disabled)').forEach(cb => cb.checked = e.target.checked);
-                document.getElementById('bulk-unsubscribe-btn').disabled = !e.target.checked;
-            });
-
-            document.getElementById('channel-items-container').addEventListener('change', () => {
-                const checked = document.querySelectorAll('.channel-checkbox:checked').length;
-                document.getElementById('bulk-unsubscribe-btn').disabled = checked === 0;
-            });
-
-            document.getElementById('bulk-unsubscribe-btn').addEventListener('click', async () => {
-                const ids = Array.from(document.querySelectorAll('.channel-checkbox:checked')).map(cb => cb.value);
-                if (!confirm(`${ids.length}件の登録を解除しますか？`)) return;
-
-                showLoading('解除中...');
-                try {
-                    await apiClient.bulkDeleteSubscriptions(ids);
-                    allChannels.forEach(c => { if (ids.includes(c.subscriptionId)) c.isSubscribed = false; });
-                    showToast('完了しました');
-                } catch (e) {
-                    alert("一部の解除に失敗しました。");
-                } finally {
-                    hideLoading();
-                    renderChannels();
-                    updateDashboard();
-                }
-            });
-
-            document.getElementById('logout-btn').addEventListener('click', () => {
-                location.href = '/auth/logout';
-            });
+                updateDashboard();
+            }
+            
+            document.getElementById('bulk-analyze-btn').addEventListener('click', analyzeChannels);
         });
     </script>
 </body>
