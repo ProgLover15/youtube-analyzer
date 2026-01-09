@@ -242,6 +242,25 @@
             border-radius: 8px;
         }
 
+        .channel-item.unsubscribed {
+            opacity: 0.6;
+            background-color: #1a1a1a;
+        }
+
+        /* リンクのスタイル */
+        .channel-link {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            text-decoration: none;
+            color: inherit;
+            transition: opacity 0.2s;
+        }
+
+        .channel-link:hover {
+            opacity: 0.8;
+        }
+
         .channel-item img {
             width: 48px;
             height: 48px;
@@ -252,7 +271,6 @@
 
         .channel-info { flex-grow: 1; }
         .channel-info h4 { font-size: 1em; margin-bottom: 4px; }
-        .channel-info p { font-size: 0.8em; color: var(--secondary-text-color); }
 
         .status-badge {
             padding: 6px 12px;
@@ -280,7 +298,7 @@
 
         button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .btn-primary { background-color: var(--button-blue-color); color: var(--background-color); }
+        .btn-primary { background-color: var(--button-blue-color); color: #000; }
         .btn-danger { background-color: var(--error-color); color: var(--primary-text-color); }
         .btn-secondary { background-color: var(--button-gray-color); color: var(--primary-text-color); }
 
@@ -310,7 +328,7 @@
             border: 1px solid var(--border-color);
         }
 
-        #toast.show { visibility: visible; animation: slideIn 0.3s; }
+        #toast.show { visibility: visible; animation: slideIn 0.3s forwards; }
 
         @keyframes slideIn { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
 
@@ -341,6 +359,7 @@
             <h2>アカウントを連携して分析を開始</h2>
             <p>「Googleでログイン」をクリックして、YouTubeのチャンネル登録情報の整理を開始します。<br>
             本アプリがユーザーの許可なく勝手に登録解除を行うことはありません。</p>
+            <br>
             <a href="/auth/google" class="btn-primary" style="text-decoration: none; padding: 14px 28px;">
                 <i class="fab fa-google"></i> Googleでログインして開始
             </a>
@@ -371,7 +390,7 @@
                     <div class="slider-label"><span>最終投稿からの日数</span><span class="slider-value"><span id="threshold-display">60</span> 日以上</span></div>
                     <div class="slider-wrapper">
                         <input type="range" id="inactive-threshold-slider" min="30" max="365" value="60">
-                        <div class="slider-progress" id="slider-progress"></div>
+                        <div class="slider-progress" id="slider-progress" style="width: 8.95%;"></div>
                     </div>
                 </div>
                 <div class="filter-tabs">
@@ -424,12 +443,13 @@
     </div>
 
     <script>
-        // --- API Client ---
         const apiClient = {
             baseUrl: '',
             async checkAuthStatus() {
-                const response = await fetch(`${this.baseUrl}/api/auth/status`);
-                return response.status === 200;
+                try {
+                    const response = await fetch(`${this.baseUrl}/api/auth/status`);
+                    return response.status === 200;
+                } catch { return false; }
             },
             async getAllChannels() {
                 const response = await fetch(`${this.baseUrl}/api/all-channels`);
@@ -454,13 +474,10 @@
             }
         };
 
-        // --- Global State ---
         let allChannels = [];
         let currentFilter = 'all';
         let isAnalyzing = false;
-        let analysisAbortController = null;
 
-        // --- UI functions ---
         function showLoading(msg = '') {
             document.getElementById('loading-overlay').classList.add('visible');
             document.getElementById('progress-text').textContent = msg;
@@ -479,7 +496,7 @@
             
             let inactiveCount = 0;
             subscribed.forEach(c => {
-                if (c.lastUploadDate !== 'pending' && c.lastUploadDate !== 'error') {
+                if (c.lastUploadDate !== 'pending' && c.lastUploadDate !== 'none') {
                     const diff = (new Date() - new Date(c.lastUploadDate)) / (1000*60*60*24);
                     if (diff >= threshold) inactiveCount++;
                 }
@@ -503,7 +520,8 @@
                 if (!c.isSubscribed) return false;
                 if (currentFilter === 'pending') return c.lastUploadDate === 'pending';
                 
-                const isInactive = c.lastUploadDate !== 'pending' && 
+                if (c.lastUploadDate === 'pending') return false;
+                const isInactive = c.lastUploadDate !== 'none' && 
                                    (new Date() - new Date(c.lastUploadDate)) / (1000*60*60*24) >= threshold;
                 return currentFilter === 'inactive' ? isInactive : !isInactive;
             });
@@ -517,19 +535,24 @@
                 let statusHtml = '';
                 if (!c.isSubscribed) statusHtml = '<span class="status-badge status-pending">解除済み</span>';
                 else if (c.lastUploadDate === 'pending') statusHtml = '<span class="status-badge status-pending">分析待ち</span>';
+                else if (c.lastUploadDate === 'none') statusHtml = '<span class="status-badge status-inactive">動画なし</span>';
                 else {
                     const diff = Math.floor((new Date() - new Date(c.lastUploadDate)) / (1000*60*60*24));
                     const isInact = diff >= threshold;
                     statusHtml = `<span class="status-badge ${isInact ? 'status-inactive' : 'status-active'}">${isInact ? '休止中' : '活動中'} (${diff}日前)</span>`;
                 }
 
+                // チャンネルURLの生成
+                const channelUrl = `https://www.youtube.com/channel/${c.channelId}`;
+
                 item.innerHTML = `
                     <input type="checkbox" class="channel-checkbox" value="${c.subscriptionId}" ${!c.isSubscribed ? 'disabled' : ''}>
-                    <img src="${c.thumbnails}" alt="">
-                    <div class="channel-info">
-                        <h4>${c.title}</h4>
-                        <p>${c.description || ''}</p>
-                    </div>
+                    <a href="${channelUrl}" target="_blank" class="channel-link">
+                        <img src="${c.thumbnails}" alt="">
+                        <div class="channel-info">
+                            <h4>${c.title}</h4>
+                        </div>
+                    </a>
                     ${statusHtml}
                 `;
                 container.appendChild(item);
@@ -541,7 +564,6 @@
             if (targets.length === 0) return;
 
             isAnalyzing = true;
-            analysisAbortController = new AbortController();
             document.getElementById('bulk-analyze-btn').disabled = true;
             document.getElementById('cancel-analyze-btn').style.display = 'inline-flex';
 
@@ -556,7 +578,6 @@
                     renderChannels();
                 } catch (e) { console.error(e); }
             }
-
             stopAnalysis();
         }
 
@@ -567,7 +588,6 @@
             updateDashboard();
         }
 
-        // --- Event Listeners ---
         document.addEventListener('DOMContentLoaded', async () => {
             const authed = await apiClient.checkAuthStatus();
             if (authed) {
@@ -576,11 +596,15 @@
                 document.getElementById('logout-container').style.display = 'block';
                 
                 showLoading('チャンネル一覧を取得中...');
-                allChannels = await apiClient.getAllChannels();
-                allChannels.forEach(c => c.lastUploadDate = 'pending');
-                hideLoading();
-                renderChannels();
-                updateDashboard();
+                try {
+                    allChannels = await apiClient.getAllChannels();
+                    hideLoading();
+                    renderChannels();
+                    updateDashboard();
+                } catch (e) {
+                    hideLoading();
+                    alert("データの取得に失敗しました。再ログインしてください。");
+                }
             }
 
             document.getElementById('bulk-analyze-btn').addEventListener('click', startAnalysis);
@@ -619,12 +643,17 @@
                 if (!confirm(`${ids.length}件の登録を解除しますか？`)) return;
 
                 showLoading('解除中...');
-                await apiClient.bulkDeleteSubscriptions(ids);
-                allChannels.forEach(c => { if (ids.includes(c.subscriptionId)) c.isSubscribed = false; });
-                hideLoading();
-                showToast('完了しました');
-                renderChannels();
-                updateDashboard();
+                try {
+                    await apiClient.bulkDeleteSubscriptions(ids);
+                    allChannels.forEach(c => { if (ids.includes(c.subscriptionId)) c.isSubscribed = false; });
+                    showToast('完了しました');
+                } catch (e) {
+                    alert("一部の解除に失敗しました。");
+                } finally {
+                    hideLoading();
+                    renderChannels();
+                    updateDashboard();
+                }
             });
 
             document.getElementById('logout-btn').addEventListener('click', () => {
