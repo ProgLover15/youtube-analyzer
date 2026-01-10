@@ -39,13 +39,24 @@
         </header>
 
         <div id="login-section" class="card" style="text-align: center;">
-            <p style="margin-bottom: 20px;">YouTube 利用規約に同意して、安全に購読リストを整理しましょう。</p>
-            <a href="/auth/google" class="btn btn-primary">Googleアカウントで開始</a>
+        <h2>登録チャンネルの整理 (SubCleaner)</h2>
+        <p>長期間更新されていないチャンネルを特定し、整理をサポートします。</p>
+    
+        <div style="margin: 20px 0; font-size: 0.8em; color: var(--sec);">
+            ログインすることで、
+            <a href="https://www.youtube.com/t/terms" target="_blank" style="color: var(--accent);">YouTube 利用規約</a> および 
+            <a href="#" id="link-privacy-login" style="color: var(--accent);">プライバシーポリシー</a> 
+            に同意したものとみなされます。
         </div>
+
+    <a href="/login" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 10px; padding: 12px 24px;">
+        <i class="fab fa-google"></i> Googleでログインして開始
+    </a>
+</div>
 
         <div id="app-section" style="display:none">
             <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                <div class="card" style="flex:1">購読数: <span id="count-total">0</span></div>
+                <div class="card" style="flex:1">チャンネル登録数: <span id="count-total">0</span></div>
                 <div class="card" style="flex:1; border-color: var(--accent)">解除候補: <span id="count-target">0</span></div>
             </div>
 
