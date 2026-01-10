@@ -16,7 +16,6 @@
             --border-color: #3f3f3f;
             --success-color: #4caf50;
             --error-color: #f44336;
-            --button-gray-color: #5a5a5a;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,74 +27,67 @@
             padding: 20px;
         }
 
-        /* Google公式準拠のログインボタン */
-        .google-btn {
-            display: inline-flex;
-            align-items: center;
-            background-color: #ffffff;
-            color: #757575;
-            padding: 0;
-            border-radius: 2px;
-            text-decoration: none;
-            font-family: 'Roboto', sans-serif;
-            font-weight: 500;
-            border: 1px solid #dadce0;
-            transition: box-shadow .2s;
+        .container { max-width: 1000px; margin: auto; background-color: var(--surface-color); padding: 30px; border-radius: 12px; }
+        header { text-align: center; margin-bottom: 40px; position: relative; }
+
+        /* ログアウトボタン */
+        .logout-link {
+            position: absolute; top: 0; right: 0;
+            color: var(--secondary-text-color); text-decoration: none; font-size: 0.9em;
+            padding: 5px 10px; border: 1px solid var(--border-color); border-radius: 4px;
         }
-        .google-btn:hover { box-shadow: 0 1px 2px 0 rgba(60,64,67,0.30), 0 1px 3px 1px rgba(60,64,67,0.15); }
+
+        /* ログイン前のカード */
+        .info-card {
+            background-color: var(--card-color);
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .notice-box {
+            background: rgba(62, 166, 255, 0.1);
+            border: 1px solid var(--accent-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+            font-size: 0.9em;
+        }
+
+        /* Googleボタン */
+        .google-btn {
+            display: inline-flex; align-items: center; background-color: #ffffff; color: #757575;
+            padding: 0; border-radius: 2px; text-decoration: none; font-weight: 500;
+            border: 1px solid #dadce0;
+        }
         .google-icon-wrapper { padding: 12px; }
         .google-btn-text { padding: 12px 16px; font-size: 14px; border-left: 1px solid #dadce0; }
 
-        .container { max-width: 1000px; margin: auto; background-color: var(--surface-color); padding: 30px; border-radius: 12px; }
-        header { text-align: center; margin-bottom: 40px; position: relative; }
-        
-        /* ログアウトボタンのスタイル */
-        .logout-link {
-            position: absolute;
-            top: 0;
-            right: 0;
-            color: var(--secondary-text-color);
-            text-decoration: none;
-            font-size: 0.9em;
-            padding: 5px 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            transition: background 0.2s;
-        }
-        .logout-link:hover {
-            background-color: var(--card-color);
-            color: var(--primary-text-color);
-        }
-
+        /* アプリ画面の要素 */
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
         .card { background-color: var(--card-color); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .card h3 { font-size: 0.9em; color: var(--secondary-text-color); margin-bottom: 10px; }
         .card p { font-size: 2em; font-weight: 700; }
 
         .channel-item {
             display: flex; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-color);
             background-color: var(--card-color); margin-bottom: 8px; border-radius: 8px;
         }
-        .channel-link { display: flex; align-items: center; flex-grow: 1; text-decoration: none; color: inherit; transition: opacity 0.2s; }
-        .channel-link:hover { opacity: 0.7; }
         .channel-item img { width: 44px; height: 44px; border-radius: 50%; margin-right: 15px; }
+        .channel-info { flex-grow: 1; }
 
-        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75em; margin-left: 10px; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75em; }
         .status-active { color: var(--success-color); border: 1px solid var(--success-color); }
         .status-inactive { color: var(--error-color); border: 1px solid var(--error-color); }
-        
+
         .loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.8); display: none; flex-direction: column;
             justify-content: center; align-items: center; z-index: 1000;
         }
-        .visible { display: flex; }
-
-        #toast {
-            visibility: hidden; position: fixed; bottom: 30px; right: 30px;
-            background: var(--card-color); padding: 16px; border-radius: 8px; border: 1px solid var(--accent-color);
-        }
-        #toast.show { visibility: visible; animation: fadeInUp 0.3s; }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -103,19 +95,23 @@
         <h1>SubCleaner</h1>
         <p>活動休止中のチャンネルを見つけて整理しましょう</p>
         <div id="header-actions" style="display: none;">
-            <a href="/logout" class="logout-link">
-                <i class="fas fa-sign-out-alt"></i> ログアウト
-            </a>
+            <a href="/logout" class="logout-link"><i class="fas fa-sign-out-alt"></i> ログアウト</a>
         </div>
     </header>
 
     <div class="container">
-        <div id="login-section" style="text-align: center; padding: 40px 0;">
-            <p style="margin-bottom: 25px;">YouTubeの登録状況を分析するためにGoogleアカウントでログインしてください。</p>
+        <div id="login-section" class="info-card">
+            <h2>YouTubeチャンネルを分析</h2>
+            <div class="notice-box">
+                <strong><i class="fas fa-info-circle"></i> 注意事項:</strong>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>登録チャンネルの最終投稿日を確認するために、Googleでのログインが必要です。</li>
+                    <li>このツールはデータの閲覧のみを行い、許可なく投稿などを行うことはありません。</li>
+                    <li>APIの制限により、1日に分析できる数には限りがあります。</li>
+                </ul>
+            </div>
             <a href="/auth/google" class="google-btn">
-                <div class="google-icon-wrapper">
-                    <img width="18" height="18" src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Reference_Logo.svg"/>
-                </div>
+                <div class="google-icon-wrapper"><img width="18" height="18" src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Reference_Logo.svg"/></div>
                 <span class="google-btn-text">Google アカウントでログイン</span>
             </a>
         </div>
@@ -123,16 +119,16 @@
         <div id="app-section" style="display: none;">
             <div id="dashboard" class="dashboard-grid">
                 <div class="card"><h3>登録数</h3><p id="count-subscribed">0</p></div>
-                <div class="card"><h3>休止中</h3><p id="count-inactive" style="color: var(--error-color);">0</p></div>
+                <div class="card"><h3>休止中 (60日〜)</h3><p id="count-inactive" style="color: var(--error-color);">0</p></div>
                 <div class="card"><h3>分析待ち</h3><p id="count-pending">0</p></div>
             </div>
 
             <div style="margin-bottom: 20px; display: flex; gap: 10px;">
-                <button id="bulk-analyze-btn" style="background: var(--accent-color); color: #000; padding: 10px 20px; border-radius: 5px; border:none; cursor:pointer; font-weight: bold;">
+                <button id="bulk-analyze-btn" style="background: var(--accent-color); color: #000; padding: 12px 24px; border-radius: 6px; border:none; cursor:pointer; font-weight: bold;">
                     <i class="fas fa-search"></i> 分析を開始
                 </button>
-                <button id="bulk-unsubscribe-btn" disabled style="background: var(--error-color); color: #fff; padding: 10px 20px; border-radius: 5px; border:none; cursor:pointer;">
-                    <i class="fas fa-trash"></i> 選択した項目を解除
+                <button id="bulk-unsubscribe-btn" style="background: var(--error-color); color: #fff; padding: 12px 24px; border-radius: 6px; border:none; cursor:pointer; opacity: 0.5;" disabled>
+                    <i class="fas fa-trash"></i> 選択したチャンネルを解除
                 </button>
             </div>
 
@@ -144,76 +140,38 @@
         <i class="fas fa-spinner fa-spin" style="font-size: 3em; color: var(--accent-color);"></i>
         <p id="progress-text" style="margin-top: 20px;"></p>
     </div>
-    <div id="toast"></div>
 
     <script>
         let allChannels = [];
-        let isAnalyzing = false;
 
-        async function analyzeChannels() {
-            const targets = allChannels.filter(c => c.lastUploadDate === 'pending');
-            if (targets.length === 0) return;
-
-            isAnalyzing = true;
-            document.getElementById('bulk-analyze-btn').disabled = true;
-
-            for (let i = 0; i < targets.length; i++) {
-                if (!isAnalyzing) break;
+        // ログイン状態の確認
+        document.addEventListener('DOMContentLoaded', async () => {
+            const res = await fetch('/api/auth/status');
+            if (res.ok) {
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('app-section').style.display = 'block';
+                document.getElementById('header-actions').style.display = 'block';
                 
-                const c = targets[i];
-                document.getElementById('progress-text').textContent = `分析中 (${i+1}/${targets.length}): ${c.title}`;
-                
-                try {
-                    const response = await fetch('/api/analyze', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ channelId: c.channelId })
-                    });
-                    
-                    if (response.status === 403) {
-                        alert("APIの利用制限（Quota）に達しました。明日までお待ちください。");
-                        break;
-                    }
-
-                    const res = await response.json();
-                    c.lastUploadDate = res.lastUploadDate || 'none';
-                    
-                    // 負荷軽減のための待機 (500ms)
-                    await new Promise(r => setTimeout(r, 500));
-                    
-                    updateDashboard();
-                    renderChannels();
-                } catch (e) {
-                    console.error("Analysis failed", e);
-                }
+                const chanRes = await fetch('/api/all-channels');
+                allChannels = await chanRes.json();
+                renderChannels();
+                updateDashboard();
             }
-            isAnalyzing = false;
-            document.getElementById('bulk-analyze-btn').disabled = false;
-            document.getElementById('progress-text').textContent = "";
-        }
+        });
 
         function renderChannels() {
             const container = document.getElementById('channel-items-container');
             container.innerHTML = '';
-            
             allChannels.forEach(c => {
                 const item = document.createElement('div');
                 item.className = 'channel-item';
+                let status = (c.lastUploadDate === 'pending') ? '<span class="status-badge">分析待ち</span>' : 
+                             (c.lastUploadDate === 'none') ? '<span class="status-badge status-inactive">投稿なし</span>' : '分析済';
                 
-                let status = '';
-                if (c.lastUploadDate === 'pending') status = '<span class="status-badge">分析待ち</span>';
-                else if (c.lastUploadDate === 'none') status = '<span class="status-badge status-inactive">投稿なし</span>';
-                else {
-                    const days = Math.floor((new Date() - new Date(c.lastUploadDate))/(1000*60*60*24));
-                    status = `<span class="status-badge ${days > 60 ? 'status-inactive' : 'status-active'}">${days}日前に投稿</span>`;
-                }
-
                 item.innerHTML = `
-                    <input type="checkbox" class="channel-checkbox" value="${c.subscriptionId}">
-                    <a href="https://www.youtube.com/channel/${c.channelId}" target="_blank" class="channel-link">
-                        <img src="${c.thumbnails}">
-                        <div><strong>${c.title}</strong></div>
-                    </a>
+                    <input type="checkbox" value="${c.subscriptionId}" style="margin-right: 15px;">
+                    <img src="${c.thumbnails}">
+                    <div class="channel-info"><strong>${c.title}</strong></div>
                     ${status}
                 `;
                 container.appendChild(item);
@@ -223,29 +181,26 @@
         function updateDashboard() {
             document.getElementById('count-subscribed').textContent = allChannels.length;
             document.getElementById('count-pending').textContent = allChannels.filter(c => c.lastUploadDate === 'pending').length;
-            // 休止中（60日以上）のカウント
-            const inactive = allChannels.filter(c => {
-                if (c.lastUploadDate === 'pending' || c.lastUploadDate === 'none') return false;
-                return (new Date() - new Date(c.lastUploadDate))/(1000*60*60*24) > 60;
-            }).length;
-            document.getElementById('count-inactive').textContent = inactive;
         }
 
-        // 初期化処理
-        document.addEventListener('DOMContentLoaded', async () => {
-            const res = await fetch('/api/auth/status');
-            if (res.ok) {
-                document.getElementById('login-section').style.display = 'none';
-                document.getElementById('app-section').style.display = 'block';
-                document.getElementById('header-actions').style.display = 'block'; // ログアウトボタンを表示
-                
-                const chanRes = await fetch('/api/all-channels');
-                allChannels = await chanRes.json();
+        document.getElementById('bulk-analyze-btn').addEventListener('click', async () => {
+            const targets = allChannels.filter(c => c.lastUploadDate === 'pending');
+            document.getElementById('loading-overlay').style.display = 'flex';
+            
+            for (let i = 0; i < targets.length; i++) {
+                const c = targets[i];
+                document.getElementById('progress-text').textContent = `${i+1}/${targets.length} を分析中...`;
+                const res = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({channelId: c.channelId})
+                });
+                const data = await res.json();
+                c.lastUploadDate = data.lastUploadDate;
                 renderChannels();
                 updateDashboard();
             }
-            
-            document.getElementById('bulk-analyze-btn').addEventListener('click', analyzeChannels);
+            document.getElementById('loading-overlay').style.display = 'none';
         });
     </script>
 </body>
