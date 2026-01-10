@@ -47,8 +47,26 @@
         .google-btn-text { padding: 12px 16px; font-size: 14px; border-left: 1px solid #dadce0; }
 
         .container { max-width: 1000px; margin: auto; background-color: var(--surface-color); padding: 30px; border-radius: 12px; }
-        header { text-align: center; margin-bottom: 40px; }
+        header { text-align: center; margin-bottom: 40px; position: relative; }
         
+        /* ログアウトボタンのスタイル */
+        .logout-link {
+            position: absolute;
+            top: 0;
+            right: 0;
+            color: var(--secondary-text-color);
+            text-decoration: none;
+            font-size: 0.9em;
+            padding: 5px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .logout-link:hover {
+            background-color: var(--card-color);
+            color: var(--primary-text-color);
+        }
+
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
         .card { background-color: var(--card-color); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color); }
         .card p { font-size: 2em; font-weight: 700; }
@@ -84,6 +102,11 @@
     <header>
         <h1>SubCleaner</h1>
         <p>活動休止中のチャンネルを見つけて整理しましょう</p>
+        <div id="header-actions" style="display: none;">
+            <a href="/logout" class="logout-link">
+                <i class="fas fa-sign-out-alt"></i> ログアウト
+            </a>
+        </div>
     </header>
 
     <div class="container">
@@ -214,6 +237,7 @@
             if (res.ok) {
                 document.getElementById('login-section').style.display = 'none';
                 document.getElementById('app-section').style.display = 'block';
+                document.getElementById('header-actions').style.display = 'block'; // ログアウトボタンを表示
                 
                 const chanRes = await fetch('/api/all-channels');
                 allChannels = await chanRes.json();
