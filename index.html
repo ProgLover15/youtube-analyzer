@@ -6,114 +6,77 @@
     <title>SubCleaner</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        :root {
-            --background-color: #0f0f0f; --surface-color: #212121; --card-color: #282828;
-            --primary-text-color: #ffffff; --secondary-text-color: #aaaaaa; --accent-color: #3ea6ff;
-            --border-color: #3f3f3f; --error-color: #f44336;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Roboto', sans-serif; background-color: var(--background-color); color: var(--primary-text-color); padding: 20px; line-height: 1.6; }
-        .container { max-width: 900px; margin: auto; background-color: var(--surface-color); padding: 30px; border-radius: 12px; }
-        header { text-align: center; margin-bottom: 40px; position: relative; }
-        .logout-btn { position: absolute; top: 0; right: 0; background: none; border: 1px solid var(--border-color); color: var(--secondary-text-color); padding: 8px 15px; border-radius: 4px; cursor: pointer; display: none; }
-        .info-card { background-color: var(--card-color); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); text-align: center; }
-        .notice-box { background: rgba(62, 166, 255, 0.1); border: 1px solid var(--accent-color); padding: 20px; border-radius: 8px; margin-bottom: 25px; text-align: left; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; overflow-y: auto; }
-        .modal-content { background: var(--surface-color); width: 90%; max-width: 700px; margin: 40px auto; padding: 30px; border-radius: 12px; color: #ddd; }
-        .modal-content h2, .modal-content h3 { color: white; margin: 20px 0 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
-        .close-modal { float: right; font-size: 28px; cursor: pointer; color: white; }
-        footer { margin-top: 50px; text-align: center; font-size: 0.85em; color: var(--secondary-text-color); border-top: 1px solid var(--border-color); padding-top: 20px; }
-        footer a { color: var(--accent-color); text-decoration: none; margin: 0 10px; cursor: pointer; }
-        .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
-        .card { background: var(--card-color); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); text-align: center; }
-        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 3000; }
+        :root { --bg: #0f0f0f; --surf: #212121; --card: #282828; --txt: #fff; --sec: #aaa; --accent: #3ea6ff; --err: #f44336; }
+        body { font-family: 'Roboto', sans-serif; background: var(--bg); color: var(--txt); padding: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #3f3f3f; }
+        
+        /* 3. スライダーデザイン */
+        .filter-group { margin: 20px 0; }
+        input[type="range"] { width: 100%; height: 8px; border-radius: 5px; background: #444; outline: none; }
+
+        /* 2. プログレスバー（シークバー） */
+        #progress-area { display: none; }
+        .bar-bg { background: #444; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 10px; }
+        .bar-fill { background: var(--accent); height: 100%; width: 0%; transition: width 0.3s; }
+
+        .channel-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #3f3f3f; }
+        .channel-item img { width: 45px; height: 45px; border-radius: 50%; margin-right: 15px; }
+
+        .btn { padding: 12px 24px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-primary { background: var(--accent); color: #000; }
+        .btn-danger { background: var(--err); color: #fff; }
+
+        footer { text-align: center; margin-top: 50px; font-size: 0.85em; color: var(--sec); }
+        footer a { color: var(--accent); text-decoration: none; margin: 0 10px; }
     </style>
 </head>
 <body>
-    <header>
-        <h1>SubCleaner</h1>
-        <button id="logout-btn" class="logout-btn"><i class="fas fa-sign-out-alt"></i> ログアウト</button>
-    </header>
-
     <div class="container">
-        <div id="login-section" class="info-card">
-            <div class="notice-box">
-                <h3 style="margin-bottom:10px; color: white;"><i class="fas fa-user-shield"></i> セキュリティと同意事項</h3>
-                <p style="font-size: 0.9em; margin-bottom: 15px;">当アプリを利用するには、Googleアカウントでのログインが必要です。ログインすることで、以下の内容を理解し同意したものとみなされます：</p>
-                <ul style="margin-left: 20px; font-size: 0.85em;">
-                    <li>当アプリは <b>YouTube API サービス</b> を利用しています。</li>
-                    <li>ユーザーは <a href="https://www.youtube.com/t/terms" target="_blank" style="color:var(--accent-color);">YouTube 利用規約</a> に同意し、これに拘束されるものとします。</li>
-                    <li>当アプリは、ログインセッションの維持のために <b>Cookie（クッキー）</b> を使用します。</li>
-                    <li>詳細なデータの取り扱いは <a id="open-privacy-link" style="color:var(--accent-color); cursor:pointer;">プライバシーポリシー</a> を参照してください。</li>
-                </ul>
+        <header style="text-align: center; margin-bottom: 40px;">
+            <h1>SubCleaner</h1>
+            <p>不要な登録チャンネルをスマートに整理</p>
+        </header>
+
+        <div id="login-section" class="card" style="text-align: center;">
+            <p style="margin-bottom: 20px;">YouTube 利用規約に同意して、安全に購読リストを整理しましょう。</p>
+            <a href="/auth/google" class="btn btn-primary">Googleアカウントで開始</a>
+        </div>
+
+        <div id="app-section" style="display:none">
+            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div class="card" style="flex:1">購読数: <span id="count-total">0</span></div>
+                <div class="card" style="flex:1; border-color: var(--accent)">解除候補: <span id="count-target">0</span></div>
             </div>
-            <a href="/auth/google" style="background: white; color: #757575; padding: 12px 24px; border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center; font-weight: 500; border: 1px solid #ddd;">
-                <img width="18" height="18" src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Reference_Logo.svg" style="margin-right: 12px;">
-                Googleアカウントでログイン
-            </a>
-        </div>
 
-        <div id="app-section" style="display: none;">
-            <div class="dashboard-grid">
-                <div class="card"><h3>登録数</h3><p id="count-subscribed">0</p></div>
-                <div class="card"><h3>休止中</h3><p id="count-inactive" style="color:var(--error-color);">0</p></div>
-                <div class="card"><h3>未分析</h3><p id="count-pending">0</p></div>
+            <div class="card">
+                <div class="filter-group">
+                    <label><b>非アクティブ期間: <span id="val-months" style="color:var(--accent)">3</span> ヶ月以上投稿なし</b></label>
+                    <input type="range" id="slider-months" min="0" max="24" value="3">
+                </div>
             </div>
-            <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
-                <label><input type="checkbox" id="select-all-checkbox"> 全選択</label>
-                <button id="bulk-analyze-btn" style="background:var(--accent-color); color:#000; padding:10px 20px; border-radius:4px; border:none; cursor:pointer; font-weight:bold;">分析開始</button>
-                <button id="bulk-unsubscribe-btn" disabled style="background:var(--error-color); color:white; padding:10px 20px; border-radius:4px; border:none; cursor:pointer;">選択解除</button>
+
+            <div id="progress-area" class="card">
+                <p id="progress-text">準備中...</p>
+                <div class="bar-bg"><div id="progress-fill" class="bar-fill"></div></div>
             </div>
-            <div id="channel-items-container"></div>
+
+            <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center;">
+                <button id="btn-analyze" class="btn btn-primary">一括分析を開始</button>
+                <button id="btn-delete" class="btn btn-danger" disabled>選択したチャンネルを解除</button>
+                <button id="btn-logout" style="background:none; color:var(--sec); border:1px solid #444; margin-left:auto; cursor:pointer">ログアウト</button>
+            </div>
+
+            <div id="list-container" class="card" style="padding:0"></div>
         </div>
+
+        <footer>
+            <a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a> | 
+            <a href="#" id="link-privacy">プライバシーポリシー</a> | 
+            <a href="https://myaccount.google.com/connections" target="_blank">Google連携解除</a>
+            <p style="margin-top:15px">&copy; 2024 SubCleaner (Compliance Version)</p>
+        </footer>
     </div>
-
-    <footer>
-        <a id="btn-tos">利用規約</a> | 
-        <a id="btn-privacy">プライバシーポリシー</a> | 
-        <a href="https://myaccount.google.com/connections" target="_blank">アクセス権の管理 (Google)</a>
-        <p style="margin-top: 15px;">&copy; 2024 SubCleaner. This application is not endorsed by or affiliated with Google or YouTube.</p>
-    </footer>
-
-    <div id="modal-tos" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" data-modal="modal-tos">&times;</span>
-            <h2>利用規約 (Terms of Service)</h2>
-            <p>本ツール（以下「SubCleaner」）を利用することで、ユーザーは本規約および <b><a href="https://www.youtube.com/t/terms" target="_blank">YouTube 利用規約</a></b> に同意したものとみなされます。同意しない場合は、本ツールの使用を直ちに中止してください。</p>
-            <h3>1. サービスの目的</h3>
-            <p>本ツールはYouTube API サービスを利用し、登録チャンネルの整理を支援するための個人的な管理ツールです。</p>
-            <h3>2. API利用について</h3>
-            <p>本ツールはYouTube APIを使用しています。APIの制限や仕様変更により、機能の一部または全部が利用できなくなる場合があります。</p>
-            <h3>3. 免責事項</h3>
-            <p>本ツールの利用により生じた直接的、間接的損害（登録解除の誤操作等を含む）について、開発者は一切の責任を負いません。すべてユーザー自身の責任において利用してください。</p>
-        </div>
-    </div>
-
-    <div id="modal-privacy" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" data-modal="modal-privacy">&times;</span>
-            <h2>プライバシーポリシー</h2>
-            <p>SubCleanerは、ユーザーのプライバシーを尊重し、YouTube API サービスから取得したデータの保護に努めます。当アプリを利用することで、ユーザーは <b><a href="http://www.google.com/policies/privacy" target="_blank">Google プライバシーポリシー</a></b> に同意したものとみなされます。</p>
-            
-            <h3>1. アクセスする情報の種類と目的</h3>
-            <p>当アプリは、YouTubeの「登録チャンネル一覧」および「動画の更新情報」にアクセスします。これは休止中のチャンネルを特定して表示するためであり、他の目的には使用しません。</p>
-            
-            <h3>2. Cookie（クッキー）の使用について</h3>
-            <p>当アプリは、ログイン状態の維持（セッション管理）のために、ユーザーのブラウザにCookieを配置、またはアクセスします。これにより認証情報の保護と利便性の向上を図ります。</p>
-            
-            <h3>3. データの保存と第三者提供</h3>
-            <p>取得したAPIデータは表示の際に一時的にメモリ上で処理されますが、開発者のサーバーに保存したり、第三者に共有・販売したりすることはありません。</p>
-            
-            <h3>4. アクセス権の取り消しとデータ削除</h3>
-            <p>ユーザーはログアウトすることでブラウザ上のセッション情報を削除できます。また、<b><a href="https://myaccount.google.com/connections" target="_blank">Google セキュリティ設定ページ</a></b> から、いつでも本アプリのアクセス権を個別に直接取り消すことができます。</p>
-        </div>
-    </div>
-
-    <div id="loading-overlay" class="loading-overlay">
-        <i class="fas fa-spinner fa-spin" style="font-size: 3em; color: var(--accent-color); margin-bottom: 20px;"></i>
-        <div id="progress-text" style="color: white;"></div>
-    </div>
-
     <script src="script.js"></script>
 </body>
 </html>
