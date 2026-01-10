@@ -1,4 +1,5 @@
 import os
+import google.oauth2.credentials
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
@@ -15,18 +16,14 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY")
 if not app.secret_key:
     raise ValueError("FLASK_SECRET_KEY must be set in environment variables")
 
-# 【重要】Render等のHTTPS環境でセッション（Cookie）を維持するための設定
-# これがないとログインしても「未ログイン」扱いになり初期画面に戻されます
+# Render等のHTTPS環境でのセッション維持設定
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config.update(
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
 )
 
-# プロキシ設定の適用（httpsプロトコルを正しく認識させる）
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-
-# OAuth設定
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 API_SERVICE_NAME = "youtube"
 API_VERSION = "v3"
@@ -36,6 +33,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/youtube.readonly"
 ]
 
+# Google Cloud Consoleの設定
 CLIENT_SECRETS_FILE = {
     "web": {
         "client_id": os.getenv("GOOGLE_CLIENT_ID"),
@@ -60,6 +58,7 @@ def credentials_to_dict(credentials):
 def build_youtube_service():
     if 'credentials' not in session:
         return None
+    # 修正箇所: 正しいインポートパスでCredentialsを復元
     credentials = google.oauth2.credentials.Credentials(**session['credentials'])
     return googleapiclient.discovery.build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
@@ -71,7 +70,6 @@ def index():
 def authorize():
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
         CLIENT_SECRETS_FILE, scopes=SCOPES)
-    # 常に https を強制
     flow.redirect_uri = url_for('callback', _external=True, _scheme='https')
     authorization_url, state = flow.authorization_url(
         access_type='offline',
@@ -86,7 +84,6 @@ def callback():
         CLIENT_SECRETS_FILE, scopes=SCOPES, state=state)
     flow.redirect_uri = url_for('callback', _external=True, _scheme='https')
     
-    # Render環境でのプロキシによるhttp書き換えを防止
     authorization_response = request.url.replace('http:', 'https:')
     flow.fetch_token(authorization_response=authorization_response)
     
@@ -95,6 +92,7 @@ def callback():
 
 @app.route('/logout')
 def logout():
+    # 指摘事項への対応: データの削除
     session.clear()
     return redirect('/')
 
@@ -115,29 +113,32 @@ def get_all_channels():
     
     try:
         while True:
-            request = youtube.subscriptions().list(
+            # 登録チャンネルを最大50件ずつ取得（シークバーの元データ）
+            req = youtube.subscriptions().list(
                 part="snippet,contentDetails",
                 mine=True,
                 maxResults=50,
                 pageToken=next_page_token
             )
-            response = request.execute()
+            res = req.execute()
             
-            for item in response.get('items', []):
+            for item in res.get('items', []):
                 all_subscriptions.append({
                     "subscriptionId": item['id'],
                     "channelId": item['snippet']['resourceId']['channelId'],
                     "title": item['snippet']['title'],
                     "thumbnails": item['snippet']['thumbnails']['default']['url'],
-                    "lastUploadDate": "pending",
+                    "lastUploadDate": "pending", # フロントエンドの分析待ち状態
                     "isSubscribed": True
                 })
             
-            next_page_token = response.get('nextPageToken')
+            next_page_token = res.get('nextPageToken')
             if not next_page_token:
                 break
         return jsonify(all_subscriptions)
     except Exception as e:
+        # ここでエラーが起きると500エラーになるためログ出力
+        print(f"Error in all-channels: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/analyze', methods=['POST'])
@@ -150,19 +151,17 @@ def analyze_channel():
     channel_id = data.get('channelId')
     
     try:
+        # 最新動画投稿日を取得（休止中判定のコアロジック）
         channel_res = youtube.channels().list(
             part="contentDetails", id=channel_id
         ).execute()
         
-        if not channel_res.get("items"):
-            return jsonify({"lastUploadDate": "none"})
-            
         uploads_id = channel_res["items"][0]["contentDetails"]["relatedPlaylists"]["uploads"]
         playlist_res = youtube.playlistItems().list(
             part="snippet", playlistId=uploads_id, maxResults=1
         ).execute()
         
-        last_date = None
+        last_date = "none"
         if playlist_res.get("items"):
             last_date = playlist_res["items"][0]["snippet"]["publishedAt"]
         
@@ -170,6 +169,7 @@ def analyze_channel():
     except:
         return jsonify({"lastUploadDate": "none"})
 
+# あなたが重視する「一括解除」機能
 @app.route('/api/subscriptions/bulk-delete', methods=['POST'])
 def bulk_delete():
     youtube = build_youtube_service()
@@ -184,10 +184,11 @@ def bulk_delete():
         try:
             youtube.subscriptions().delete(id=sub_id).execute()
             success += 1
-        except:
+        except Exception:
             fail += 1
             
     return jsonify({"successCount": success, "failCount": fail})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
