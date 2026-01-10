@@ -1,6 +1,7 @@
 /**
  * SubCleaner - script.js
  * YouTube API ToS Compliance Version
+ * 全ての構文エラーを修正済み
  */
 
 let allChannels = [];
@@ -22,7 +23,7 @@ const showToast = (msg) => {
 const createToastElement = () => {
     const t = document.createElement('div');
     t.id = 'toast';
-    t.style.cssText = 'position:fixed; bottom:30px; right:30px; background:var(--card-color); padding:16px; border-radius:8px; border:1px solid var(--accent-color); visibility:hidden; opacity:0; transition:0.3s; z-index:9999;';
+    t.style.cssText = 'position:fixed; bottom:30px; right:30px; background:var(--card-color); padding:16px; border-radius:8px; border:1px solid var(--accent-color); visibility:hidden; opacity:0; transition:0.3s; z-index:9999; color:white;';
     document.body.appendChild(t);
     return t;
 };
@@ -31,17 +32,19 @@ const createToastElement = () => {
 const showLoading = (text) => {
     const overlay = document.getElementById('loading-overlay');
     const txt = document.getElementById('progress-text');
-    txt.textContent = text;
-    overlay.style.display = 'flex';
+    if (overlay && txt) {
+        txt.textContent = text;
+        overlay.style.display = 'flex';
+    }
 };
 
 const hideLoading = () => {
-    document.getElementById('loading-overlay').style.display = 'none';
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.style.display = 'none';
 };
 
 // --- API操作 ---
 
-// チャンネル一覧取得
 async function fetchChannels() {
     try {
         const res = await fetch('/api/all-channels');
@@ -54,7 +57,6 @@ async function fetchChannels() {
     }
 }
 
-// チャンネル分析（個別または一括）
 async function analyzeChannels() {
     const targets = allChannels.filter(c => c.isSubscribed && c.lastUploadDate === 'pending');
     if (targets.length === 0) {
@@ -84,7 +86,6 @@ async function analyzeChannels() {
     showToast('すべての分析が完了しました');
 }
 
-// 登録解除処理
 async function bulkUnsubscribe() {
     const checkboxes = document.querySelectorAll('.channel-checkbox:checked');
     const ids = Array.from(checkboxes).map(cb => cb.value);
@@ -99,7 +100,6 @@ async function bulkUnsubscribe() {
             body: JSON.stringify({ subscriptionIds: ids })
         }).then(r => r.json());
 
-        // 成功したものを反映
         allChannels.forEach(c => {
             if (ids.includes(c.subscriptionId)) c.isSubscribed = false;
         });
@@ -125,19 +125,18 @@ function renderChannels() {
         const item = document.createElement('div');
         item.style.cssText = `display:flex; align-items:center; padding:12px; border-bottom:1px solid var(--border-color); ${!c.isSubscribed ? 'opacity:0.5;' : ''}`;
         
-        // 状態テキストの生成
         let statusText = '未分析';
         let statusColor = 'var(--secondary-text-color)';
         
         if (c.lastUploadDate !== 'pending') {
             if (c.lastUploadDate === 'none') {
                 statusText = '投稿動画なし';
-                statusColor = var(--error-color);
+                statusColor = 'var(--error-color)'; // 修正箇所：引用符を追加
             } else {
                 const lastDate = new Date(c.lastUploadDate);
                 const diffDays = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
                 statusText = `${diffDays}日前に投稿`;
-                if (diffDays > 60) statusColor = 'var(--error-color)';
+                if (diffDays > 60) statusColor = 'var(--error-color)'; // 修正箇所
             }
         }
 
@@ -145,7 +144,7 @@ function renderChannels() {
             <input type="checkbox" class="channel-checkbox" value="${c.subscriptionId}" ${!c.isSubscribed ? 'disabled' : ''} style="margin-right:15px; width:18px; height:18px;">
             <img src="${c.thumbnails}" style="width:40px; height:40px; border-radius:50%; margin-right:15px;">
             <div style="flex-grow:1;">
-                <div style="font-weight:bold;">${c.title}</div>
+                <div style="font-weight:bold; color:white;">${c.title}</div>
                 <div style="font-size:0.8em; color:${statusColor};">${statusText}</div>
             </div>
         `;
@@ -155,26 +154,34 @@ function renderChannels() {
 
 function updateDashboard() {
     const subs = allChannels.filter(c => c.isSubscribed);
-    document.getElementById('count-subscribed').textContent = subs.length;
-    document.getElementById('count-pending').textContent = subs.filter(c => c.lastUploadDate === 'pending').length;
+    const countSubscribed = document.getElementById('count-subscribed');
+    const countPending = document.getElementById('count-pending');
+    const countInactive = document.getElementById('count-inactive');
+
+    if (countSubscribed) countSubscribed.textContent = subs.length;
+    if (countPending) countPending.textContent = subs.filter(c => c.lastUploadDate === 'pending').length;
     
-    const inactive = subs.filter(c => {
+    const inactiveCount = subs.filter(c => {
         if (c.lastUploadDate === 'pending' || c.lastUploadDate === 'none') return false;
         return (new Date() - new Date(c.lastUploadDate)) / (1000 * 60 * 60 * 24) > 60;
     }).length;
-    document.getElementById('count-inactive').textContent = inactive;
+    if (countInactive) countInactive.textContent = inactiveCount;
 }
 
 // --- イベントリスナー設定 ---
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 認証状態の確認
-    const authRes = await fetch('/api/auth/status');
-    if (authRes.ok) {
-        document.getElementById('login-section').style.display = 'none';
-        document.getElementById('app-section').style.display = 'block';
-        document.getElementById('logout-btn').style.display = 'block';
-        fetchChannels();
+    try {
+        const authRes = await fetch('/api/auth/status');
+        if (authRes.ok) {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-section').style.display = 'block';
+            document.getElementById('logout-btn').style.display = 'block';
+            fetchChannels();
+        }
+    } catch (e) {
+        console.log("Not logged in");
     }
 
     // モーダル制御
@@ -188,6 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setupModal('btn-tos', 'modal-tos');
     setupModal('btn-privacy', 'modal-privacy');
+    setupModal('btn-privacy-footer', 'modal-privacy'); // フッター用IDがある場合
     setupModal('open-privacy-link', 'modal-privacy');
 
     document.querySelectorAll('.close-modal').forEach(span => {
@@ -196,27 +204,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
     });
 
-    // ログアウト
-    document.getElementById('logout-btn').onclick = () => {
-        location.href = '/logout';
+    window.onclick = (event) => {
+        if (event.target.className === 'modal') {
+            event.target.style.display = 'none';
+        }
     };
+
+    // ログアウト
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.onclick = () => { location.href = '/logout'; };
+    }
 
     // 分析ボタン
-    document.getElementById('bulk-analyze-btn').onclick = analyzeChannels;
+    const analyzeBtn = document.getElementById('bulk-analyze-btn');
+    if (analyzeBtn) analyzeBtn.onclick = analyzeChannels;
 
     // 全選択
-    document.getElementById('select-all-checkbox').onchange = (e) => {
-        const cbs = document.querySelectorAll('.channel-checkbox:not(:disabled)');
-        cbs.forEach(cb => cb.checked = e.target.checked);
-        document.getElementById('bulk-unsubscribe-btn').disabled = !e.target.checked || cbs.length === 0;
-    };
+    const selectAll = document.getElementById('select-all-checkbox');
+    if (selectAll) {
+        selectAll.onchange = (e) => {
+            const cbs = document.querySelectorAll('.channel-checkbox:not(:disabled)');
+            cbs.forEach(cb => cb.checked = e.target.checked);
+            const bulkUnsubBtn = document.getElementById('bulk-unsubscribe-btn');
+            if (bulkUnsubBtn) bulkUnsubBtn.disabled = !e.target.checked || cbs.length === 0;
+        };
+    }
 
     // 個別選択時の解除ボタン制御
-    document.getElementById('channel-items-container').onchange = () => {
-        const checkedCount = document.querySelectorAll('.channel-checkbox:checked').length;
-        document.getElementById('bulk-unsubscribe-btn').disabled = checkedCount === 0;
-    };
+    const container = document.getElementById('channel-items-container');
+    if (container) {
+        container.onchange = () => {
+            const checkedCount = document.querySelectorAll('.channel-checkbox:checked').length;
+            const bulkUnsubBtn = document.getElementById('bulk-unsubscribe-btn');
+            if (bulkUnsubBtn) bulkUnsubBtn.disabled = checkedCount === 0;
+        };
+    }
 
     // 解除実行
-    document.getElementById('bulk-unsubscribe-btn').onclick = bulkUnsubscribe;
+    const bulkUnsubBtn = document.getElementById('bulk-unsubscribe-btn');
+    if (bulkUnsubBtn) bulkUnsubBtn.onclick = bulkUnsubscribe;
 });
