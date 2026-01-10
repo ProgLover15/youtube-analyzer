@@ -32,7 +32,7 @@ CLIENT_SECRETS_FILE = {
         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
         "token_uri": "https://oauth2.googleapis.com/token",
         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "redirect_uris": [os.getenv("REDIRECT_URI", "http://127.0.0.1:5000/auth/callback")] 
+        "redirect_uris": [os.getenv("REDIRECT_URI", "https://subsc-cleaner.onrender.com/auth/callback")] 
     }
 }
 
@@ -57,7 +57,7 @@ def auth_google():
     authorization_url, state = flow.authorization_url(
         access_type='offline',
         include_granted_scopes='true',
-        prompt='consent' # 審査を通しやすくするために追加
+        prompt='consent'
     )
     session['state'] = state
     return redirect(authorization_url)
@@ -85,7 +85,8 @@ def auth_callback():
     }
     return redirect(url_for('index'))
 
-@app.route('/auth/logout') # index.htmlの呼び出しに合わせました
+# index.htmlの「/logout」に合わせて修正しました
+@app.route('/logout') 
 def logout():
     session.clear()
     return redirect(url_for('index'))
@@ -96,7 +97,7 @@ def auth_status():
         return jsonify({"status": "authenticated"})
     return jsonify({"error": "Not authenticated"}), 401
 
-# --- APIエンドポイント (ここも全部含めました) ---
+# --- APIエンドポイント ---
 @app.route('/api/all-channels')
 def get_all_channels():
     youtube = build_youtube_service()
@@ -155,6 +156,7 @@ def analyze_channel():
     except:
         return jsonify({"channelId": channel_id, "lastUploadDate": None})
 
+# 以前のバージョンにあった「解除機能」もここに含まれています
 @app.route('/api/subscriptions/bulk-delete', methods=['POST'])
 def bulk_delete_subscriptions():
     youtube = build_youtube_service()
