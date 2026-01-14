@@ -12,18 +12,16 @@ load_dotenv()
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
-# 1. セキュリティ：HTTPS環境でのセッション維持
+# HTTPS環境での安定動作設定
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config.update(
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=3600 # 1時間有効
 )
 
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
-API_SERVICE_NAME = "youtube"
-API_VERSION = "v3"
-SCOPES = ["https://www.googleapis.com/auth/youtube", "https://www.googleapis.com/auth/youtube.readonly"]
 
 CLIENT_SECRETS_FILE = {
     "web": {
@@ -35,16 +33,39 @@ CLIENT_SECRETS_FILE = {
     }
 }
 
-def credentials_to_dict(credentials):
-    return {'token': credentials.token, 'refresh_token': credentials.refresh_token, 'token_uri': credentials.token_uri,
-            'client_id': credentials.client_id, 'client_secret': credentials.client_secret, 'scopes': credentials.scopes}
-
 def build_youtube_service():
-    if 'credentials' not in session: return None
-    # 修正：Credentialsのインポートエラーを解消
-    creds = google.oauth2.credentials.Credentials(**session['credentials'])
-    return googleapiclient.discovery.build(API_SERVICE_NAME, API_VERSION, credentials=creds)
+    if 'credentials' not in session:
+        return None
+    
+    # セッションから認証情報を復元
+    creds_data = session['credentials']
+    creds = google.oauth2.credentials.Credentials(
+        token=creds_data.get('token'),
+        refresh_token=creds_data.get('refresh_token'),
+        token_uri=creds_data.get('token_uri'),
+        client_id=creds_data.get('client_id'),
+        client_secret=creds_data.get('client_secret'),
+        scopes=creds_data.get('scopes')
+    )
 
+    # トークンの有効期限が切れているかチェック（不安定さの解消）
+    if not creds.valid:
+        if creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(google.auth.transport.requests.Request())
+                # 更新されたトークンをセッションに再保存
+                session['credentials'] = {
+                    'token': creds.token,
+                    'refresh_token': creds.refresh_token,
+                    'token_uri': creds.token_uri,
+                    'client_id': creds.client_id,
+                    'client_secret': creds.client_secret,
+                    'scopes': creds.scopes
+                }
+            except Exception:
+                return None
+
+    return googleapiclient.discovery.build("youtube", "v3", credentials=creds)
 @app.route('/')
 def index(): return send_from_directory('.', 'index.html')
 
@@ -125,3 +146,4 @@ def bulk_delete():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
