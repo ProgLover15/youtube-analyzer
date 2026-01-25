@@ -1,49 +1,46 @@
 let allChannels = [];
 let favorites = JSON.parse(localStorage.getItem('subcleaner_favs') || '[]');
+let deletedChannels = JSON.parse(localStorage.getItem('subcleaner_deleted') || '[]');
 
 async function init() {
-    try {
-        const res = await fetch('/api/auth/status');
-        if (!res.ok) throw new Error("Auth check failed");
-        const status = await res.json();
-        
-        if (!status.ok) {
-            document.getElementById('login-section').style.display = 'block';
-            return;
-        }
-        document.getElementById('app-section').style.display = 'block';
-        loadChannels();
-    } catch (e) {
-        console.error("Init Error:", e);
-        // 通信エラーやセッション切れの場合はログインを促す
+    const res = await fetch('/api/auth/status');
+    const status = await res.json();
+    if (!status.ok) {
         document.getElementById('login-section').style.display = 'block';
+        return;
+    }
+    document.getElementById('app-section').style.display = 'block';
+    fetchUserInfo();
+    loadChannels();
+}
+
+// ログイン中のユーザー情報を取得してヘッダーに反映
+async function fetchUserInfo() {
+    try {
+        const res = await fetch('/api/user/info');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.ok) {
+                document.getElementById('user-icon').src = data.icon;
+                document.getElementById('user-icon').style.display = 'block';
+                document.getElementById('user-name').innerText = data.name;
+            }
+        }
+    } catch (e) {
+        console.error("User info fetch failed");
     }
 }
 
 async function loadChannels() {
     const res = await fetch('/api/all-channels');
-    if (res.status === 401) return location.href = '/login'; // セッション切れ対策
-    
     allChannels = await res.json();
     const cache = JSON.parse(localStorage.getItem('analysis_cache') || '{}');
     allChannels.forEach(c => {
         if (cache[c.channelId]) c.lastUploadDate = cache[c.channelId];
         c.isFavorite = favorites.includes(c.channelId);
     });
-    renderTabs();
-    setupTabEvents();
     renderList();
     updateStats();
-}
-
-function setupTabEvents() {
-    document.querySelectorAll('.tabs .tab').forEach(tab => {
-        tab.onclick = function() {
-            document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-            this.classList.add('active');
-            renderList();
-        };
-    });
 }
 
 async function analyzeChannels() {
@@ -55,40 +52,26 @@ async function analyzeChannels() {
     
     for (let i = 0; i < pending.length; i += chunkSize) {
         const chunk = pending.slice(i, i + chunkSize);
-        
         await Promise.all(chunk.map(async (c) => {
-            try {
-                const res = await fetch('/api/analyze', {
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({channelId: c.channelId})
-                });
-                
-                if (res.status === 429) {
-                    // 負荷制限(Rate Limit)がかかった場合、少し待機して再試行
-                    await new Promise(r => setTimeout(r, 1000));
-                    return analyzeChannels(); // 簡易的なリトライ
-                }
-
-                const data = await res.json();
-                c.lastUploadDate = data.lastUploadDate || 'none';
-            } catch (e) {
-                c.lastUploadDate = 'none';
-            }
+            const res = await fetch('/api/analyze', {
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({channelId: c.channelId})
+            });
+            const data = await res.json();
+            c.lastUploadDate = data.lastUploadDate;
         }));
-
-        // APIを労わるためのマイクロウェイト(200ms)
-        await new Promise(r => setTimeout(r, 200));
-
+        
+        // キャッシュ更新
         const cache = JSON.parse(localStorage.getItem('analysis_cache') || '{}');
         chunk.forEach(c => cache[c.channelId] = c.lastUploadDate);
         localStorage.setItem('analysis_cache', JSON.stringify(cache));
         
-        updateStats();
+        updateStats(); 
         renderList();
-        document.getElementById('progress-bar').style.width = `${((i + chunkSize) / pending.length) * 100}%`;
+        document.getElementById('progress-bar').style.width = `${((i+chunkSize)/pending.length)*100}%`;
     }
-    alert("全チャンネルの分析が完了しました。リストを確認してください。");
+    alert("完了しました");
 }
 
 function updateStats() {
@@ -106,44 +89,56 @@ function updateStats() {
 }
 
 function renderList() {
-    const activeTabElement = document.querySelector('.tab.active');
-    if (!activeTabElement) return;
-    
-    const tab = activeTabElement.dataset.cat;
+    const activeTab = document.querySelector('.tab.active');
+    const tab = activeTab ? activeTab.dataset.cat : 'all';
+    const sortType = document.getElementById('sort-type').value;
     const m = document.getElementById('slider-months').value;
     const limit = new Date(); limit.setMonth(limit.getMonth() - m);
     const container = document.getElementById('list-container');
     container.innerHTML = '';
 
-    const filtered = allChannels.filter(c => {
-        const isOld = c.lastUploadDate !== 'pending' && (c.lastUploadDate === 'none' || new Date(c.lastUploadDate) < limit);
-        const isTarget = isOld && !c.isFavorite && c.subscribers < 100000;
+    // 表示するリストを選択（履歴か現行か）
+    let list = (tab === 'deleted') ? deletedChannels : allChannels;
 
-        if (tab === 'target') return isTarget;
+    // フィルタリング
+    let filtered = list.filter(c => {
+        if (tab === 'deleted') return true;
+        const isOld = c.lastUploadDate !== 'pending' && (c.lastUploadDate === 'none' || new Date(c.lastUploadDate) < limit);
+        if (tab === 'target') return isOld && !c.isFavorite && c.subscribers < 100000;
         if (tab === 'star') return c.isFavorite;
-        if (tab === 'all') return true;
-        return c.category === tab;
+        return true;
+    });
+
+    // ソート処理
+    filtered.sort((a, b) => {
+        if (sortType === 'sub-desc') return b.subscribers - a.subscribers;
+        if (sortType === 'sub-asc') return a.subscribers - b.subscribers;
+        
+        const dateA = new Date(a.lastUploadDate === 'none' || a.lastUploadDate === 'pending' ? 0 : a.lastUploadDate);
+        const dateB = new Date(b.lastUploadDate === 'none' || b.lastUploadDate === 'pending' ? 0 : b.lastUploadDate);
+        
+        if (sortType === 'date-desc') return dateB - dateA;
+        if (sortType === 'date-asc') return dateA - dateB;
+        return 0;
     });
 
     if (filtered.length === 0) {
-        container.innerHTML = '<div style="padding:20px; text-align:center; color:#666;">表示するチャンネルがありません</div>';
+        container.innerHTML = '<div style="padding:20px; text-align:center; color:#666;">表示する項目がありません</div>';
         return;
     }
 
     filtered.forEach(c => {
-        const isOld = c.lastUploadDate !== 'pending' && (c.lastUploadDate === 'none' || new Date(c.lastUploadDate) < limit);
-        const isTarget = isOld && !c.isFavorite && c.subscribers < 100000;
-        
         const div = document.createElement('div');
         div.className = 'channel-item';
+        const isHistory = tab === 'deleted';
         div.innerHTML = `
-            <i class="fas fa-star fav-btn ${c.isFavorite ? 'active' : ''}" onclick="toggleFav('${c.channelId}')"></i>
+            ${isHistory ? '' : `<i class="fas fa-star fav-btn ${c.isFavorite ? 'active' : ''}" onclick="toggleFav('${c.channelId}')"></i>`}
             <img src="${c.thumbnails}" onclick="window.open('https://youtube.com/channel/${c.channelId}', '_blank')">
             <div class="info">
                 <div class="title">${c.title}</div>
-                <div class="meta">${c.category} | 登録者:${c.subscribers.toLocaleString()}人 | 最終投稿:${c.lastUploadDate === 'pending' ? '未分析' : c.lastUploadDate.split('T')[0]}</div>
+                <div class="meta">登録者:${c.subscribers.toLocaleString()}人 | 最終投稿:${c.lastUploadDate.split('T')[0]}</div>
             </div>
-            ${isTarget ? '<i class="fas fa-trash-alt" style="color:#f44336; margin-left: 10px;"></i>' : ''}
+            ${isHistory ? '<span style="color:#666; font-size:0.8em; border:1px solid #444; padding:2px 6px; border-radius:4px;">解除済み</span>' : ''}
         `;
         container.appendChild(div);
     });
@@ -159,27 +154,6 @@ function toggleFav(id) {
     renderList();
 }
 
-function renderTabs() {
-    const container = document.getElementById('category-tabs');
-    // ジャンルタブの重複作成を防止
-    const existingTabs = new Set([...container.querySelectorAll('.tab')].map(t => t.dataset.cat));
-    const categories = [...new Set(allChannels.map(c => c.category))];
-    
-    categories.forEach(cat => {
-        if (existingTabs.has(cat)) return;
-        const t = document.createElement('div');
-        t.className = 'tab'; 
-        t.dataset.cat = cat; 
-        t.innerText = cat;
-        t.onclick = function() {
-            document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-            this.classList.add('active'); 
-            renderList();
-        };
-        container.appendChild(t);
-    });
-}
-
 async function bulkDelete() {
     const m = document.getElementById('slider-months').value;
     const limit = new Date(); limit.setMonth(limit.getMonth() - m);
@@ -187,9 +161,9 @@ async function bulkDelete() {
         const isOld = c.lastUploadDate !== 'pending' && (c.lastUploadDate === 'none' || new Date(c.lastUploadDate) < limit);
         return isOld && !c.isFavorite && c.subscribers < 100000;
     });
-    
-    if (!confirm(`${targets.length}件のチャンネル登録を解除します。よろしいですか？`)) return;
-    
+
+    if (!confirm(`${targets.length}件のチャンネル登録を解除しますか？`)) return;
+
     const res = await fetch('/api/subscriptions/bulk-delete', {
         method: 'POST', 
         headers: {'Content-Type': 'application/json'},
@@ -197,12 +171,27 @@ async function bulkDelete() {
     });
     
     const data = await res.json();
-    // 削除成功後はキャッシュをクリアしてリロード
+    
+    // 成功したものを履歴に追加
+    deletedChannels = [...targets, ...deletedChannels].slice(0, 100);
+    localStorage.setItem('subcleaner_deleted', JSON.stringify(deletedChannels));
+    
+    // キャッシュをリセットしてリロード
     localStorage.removeItem('analysis_cache');
-    alert(`完了しました（成功:${data.success} 失敗:${data.fail}）`);
+    alert(`完了（成功:${data.success} 失敗:${data.fail}）`);
     location.reload();
 }
 
+// イベント設定
+document.querySelectorAll('.tab').forEach(t => {
+    t.onclick = function() {
+        document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+        this.classList.add('active');
+        renderList();
+    };
+});
+
+document.getElementById('sort-type').onchange = renderList;
 document.getElementById('btn-analyze').onclick = analyzeChannels;
 document.getElementById('btn-delete').onclick = bulkDelete;
 document.getElementById('slider-months').oninput = function() {
