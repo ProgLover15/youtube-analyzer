@@ -10,16 +10,18 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 # 環境変数の読み込み
 load_dotenv()
 
-# アプリのルートディレクトリを絶対パスで特定
-root_dir = os.path.dirname(os.path.abspath(__file__))
+# アプリの物理的な絶対パスを取得
+# Render上では /opt/render/project/src などを指します
+base_dir = os.path.dirname(os.path.abspath(__file__))
 
-app = Flask(__name__, static_folder=root_dir, static_url_path='')
+# static_folderをNoneに設定し、ルーティングで明示的に配信することで404を防ぐ
+app = Flask(__name__, static_folder=None)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
 if not app.secret_key:
     raise ValueError("FLASK_SECRET_KEY is not set in environment variables")
 
-# Render等のHTTPS環境でのプロキシ設定（リダイレクトURIの整合性を保つ）
+# Render等のプロキシ環境でHTTPSを正しく扱うための設定
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 app.config.update(
@@ -29,15 +31,29 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=3600
 )
 
-# 警告回避
+# OAuth警告の抑制
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
 API_SERVICE_NAME = "youtube"
 API_VERSION = "v3"
 SCOPES = ["https://www.googleapis.com/auth/youtube", "https://www.googleapis.com/auth/youtube.readonly"]
 
+# --- 静的ファイル配信 (Not Found対策) ---
+
+@app.route('/')
+def index():
+    """ルートアクセス時に index.html を確実に返す"""
+    return send_from_directory(base_dir, 'index.html')
+
+@app.route('/<path:filename>')
+def serve_static(filename):
+    """script.js やその他のファイルをベースディレクトリから直接返す"""
+    return send_from_directory(base_dir, filename)
+
+# --- Google OAuth フロー ---
+
 def get_flow():
-    """OAuthフローを生成し、環境変数からリダイレクトURIを厳密に適用する"""
+    """環境変数からリダイレクトURIを読み込み、OAuthフローを生成"""
     redirect_uri = os.getenv("REDIRECT_URI")
     
     client_config = {
@@ -63,19 +79,7 @@ def build_youtube_service():
     credentials = google.oauth2.credentials.Credentials(**session['credentials'])
     return googleapiclient.discovery.build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
-# --- 静的ファイル配信（Not Found対策） ---
-
-@app.route('/')
-def index():
-    """ルートパスでindex.htmlを確実に返す"""
-    return send_from_directory(root_dir, 'index.html')
-
-@app.route('/<path:path>')
-def serve_static(path):
-    """JSやCSSなどの静的ファイルをルートから配信する"""
-    return send_from_directory(root_dir, path)
-
-# --- 認証関連 ---
+# --- 認証エンドポイント ---
 
 @app.route('/login')
 def login():
@@ -86,7 +90,7 @@ def login():
 @app.route('/callback')
 def callback():
     flow = get_flow()
-    # プロキシ下でのURL不一致を解消
+    # プロキシ経由で http になっている場合を考慮して置換
     authorization_response = request.url.replace('http://', 'https://')
     
     flow.fetch_token(authorization_response=authorization_response)
@@ -110,7 +114,7 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
-# --- YouTube操作API ---
+# --- YouTube Data API 操作 ---
 
 @app.route('/api/all-channels')
 def get_all_channels():
@@ -134,7 +138,7 @@ def get_all_channels():
 
             channel_ids = [item['snippet']['resourceId']['channelId'] for item in items]
             
-            # 統計情報をまとめて取得（登録者数・動画本数）
+            # 統計情報（登録者数・動画本数）を一括取得
             stats_res = youtube.channels().list(
                 part="statistics",
                 id=",".join(channel_ids)
