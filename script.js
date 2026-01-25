@@ -1,199 +1,141 @@
-let channels = [];
-const CONCURRENCY = 5; // 5件ずつ並列に分析（API制限を考慮した最適値）
+let allChannels = [];
+let favorites = JSON.parse(localStorage.getItem('subcleaner_favs') || '[]');
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // 認証状態の確認
-    const auth = await fetch('/api/auth/status').then(r => r.json());
-    if (auth.ok) {
-        document.getElementById('login-section').style.display = 'none';
-        document.getElementById('app-section').style.display = 'block';
-        loadChannels();
-    }
-});
-
-// 1. チャンネル一覧の初期読み込み
+// 1. チャンネル一覧の取得
 async function loadChannels() {
-    const listContainer = document.getElementById('list-container');
-    listContainer.innerHTML = '<p style="padding:20px; color:var(--sec);">チャンネル読み込み中...</p>';
+    const res = await fetch('/api/all-channels');
+    allChannels = await res.json();
     
-    try {
-        const res = await fetch('/api/all-channels');
-        channels = await res.json();
-        render();
-    } catch (err) {
-        listContainer.innerHTML = '<p style="padding:20px; color:var(--err);">読み込みに失敗しました。</p>';
-    }
+    // キャッシュ(LocalStorage)から過去の分析結果を復元
+    const cache = JSON.parse(localStorage.getItem('analysis_cache') || '{}');
+    allChannels.forEach(c => {
+        if (cache[c.channelId]) c.lastUploadDate = cache[c.channelId];
+        if (favorites.includes(c.channelId)) c.isFavorite = true;
+    });
+
+    renderTabs();
+    renderList();
+    updateStats();
 }
 
-// 2. スライダー操作時のリアルタイム反映
-document.getElementById('slider-months').oninput = (e) => {
-    document.getElementById('val-months').textContent = e.target.value;
-    render();
-};
+// 2. 並列分析 (5件ずつ同時実行)
+async function analyzeChannels() {
+    const pending = allChannels.filter(c => c.lastUploadDate === 'pending');
+    if (pending.length === 0) return alert("分析が必要なチャンネルはありません");
 
-// 3. 並列分析ロジック（高速版）
-async function analyze() {
-    const targets = channels.filter(c => c.lastUploadDate === 'pending' && c.isSubscribed);
-    if (targets.length === 0) return alert('分析が必要なチャンネルはありません。');
-    
-    document.getElementById('progress-area').style.display = 'block';
-    const btnAnalyze = document.getElementById('btn-analyze');
-    btnAnalyze.disabled = true;
+    document.getElementById('progress-container').style.display = 'block';
+    const chunkSize = 5;
+    let processed = 0;
 
-    // チャンクに分けて並列実行
-    for (let i = 0; i < targets.length; i += CONCURRENCY) {
-        const chunk = targets.slice(i, i + CONCURRENCY);
-        
-        await Promise.all(chunk.map(async (c, index) => {
+    for (let i = 0; i < pending.length; i += chunkSize) {
+        const chunk = pending.slice(i, i + chunkSize);
+        await Promise.all(chunk.map(async (c) => {
             try {
                 const res = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({channelId: c.channelId})
-                }).then(r => r.json());
-                
-                c.lastUploadDate = res.lastUploadDate;
+                });
+                const data = await res.json();
+                c.lastUploadDate = data.lastUploadDate;
             } catch (e) {
                 c.lastUploadDate = 'none';
             }
-            
-            // 進捗表示の更新
-            const currentCount = i + index + 1;
-            const progress = Math.min((currentCount / targets.length) * 100, 100);
-            document.getElementById('progress-text').textContent = `分析中 (${currentCount}/${targets.length})`;
-            document.getElementById('progress-fill').style.width = `${progress}%`;
         }));
         
-        render(); // 5件終わるごとにリストを更新
+        processed += chunk.length;
+        document.getElementById('progress-bar').style.width = `${(processed / pending.length) * 100}%`;
+        
+        // ローカルストレージに途中経過を保存
+        const cache = JSON.parse(localStorage.getItem('analysis_cache') || '{}');
+        chunk.forEach(c => cache[c.channelId] = c.lastUploadDate);
+        localStorage.setItem('analysis_cache', JSON.stringify(cache));
+        
+        renderList();
+        updateStats();
     }
-    
-    btnAnalyze.disabled = false;
-    alert('全チャンネルの分析が完了しました。');
+    alert("分析が完了しました！");
 }
 
-// 4. UI描画ロジック（フィルタリング・保護機能込）
-function render() {
+// 3. 表示ロジック
+function renderList() {
+    const activeTab = document.querySelector('.tab.active').dataset.cat;
+    const monthsLimit = document.getElementById('slider-months').value;
     const container = document.getElementById('list-container');
-    const threshold = parseInt(document.getElementById('slider-months').value);
     container.innerHTML = '';
-    
-    let targetCount = 0;
-    const now = new Date();
 
-    channels.forEach(c => {
-        if (!c.isSubscribed) return;
+    const limitDate = new Date();
+    limitDate.setMonth(limitDate.getMonth() - monthsLimit);
 
-        let isOld = false;
-        let infoText = '未分析';
-
-        // 期間判定ロジック
-        if (c.lastUploadDate !== 'pending' && c.lastUploadDate !== 'none') {
-            const lastDate = new Date(c.lastUploadDate);
-            const diffMonths = (now - lastDate) / (1000 * 60 * 60 * 24 * 30);
-            isOld = diffMonths >= threshold;
-            infoText = `最終投稿: ${c.lastUploadDate.split('T')[0]}`;
-        } else if (c.lastUploadDate === 'none') {
-            isOld = true;
-            infoText = '投稿動画なし';
-        }
-
-        // 保護ロジック (ホワイトリスト or 登録者10万人以上)
-        const isProtected = c.isFavorite || c.subscribers >= 100000;
-        const shouldCheck = isOld && !isProtected;
+    const filtered = allChannels.filter(c => {
+        const isOld = c.lastUploadDate !== 'pending' && (c.lastUploadDate === 'none' || new Date(c.lastUploadDate) < limitDate);
+        const isSafe = c.subscribers >= 100000 || c.isFavorite;
         
-        if (shouldCheck) targetCount++;
-
-        const el = document.createElement('div');
-        el.className = 'channel-item';
-        el.innerHTML = `
-            <input type="checkbox" class="cb" value="${c.subscriptionId}" 
-                ${shouldCheck ? 'checked' : ''} ${isProtected ? 'disabled' : ''} 
-                style="width:18px; height:18px; cursor:pointer;">
-            <div class="fav-btn ${c.isFavorite ? 'active' : ''}" title="保護（お気に入り）">
-                <i class="fa${c.isFavorite ? 's' : 'r'} fa-star"></i>
-            </div>
-            <img src="${c.thumbnails}">
-            <div style="flex:1">
-                <div style="font-weight:bold">${c.title} ${c.subscribers >= 100000 ? '<i class="fas fa-check-circle" style="color:var(--accent); font-size:0.8em;" title="有名チャンネル"></i>' : ''}</div>
-                <div style="font-size:0.85em; color:var(--sec)">${infoText}</div>
-            </div>
-        `;
-
-        // 星ボタンクリックイベント
-        el.querySelector('.fav-btn').onclick = (e) => {
-            e.stopPropagation();
-            c.isFavorite = !c.isFavorite;
-            render();
-        };
-
-        // マウスオーバーポップアップイベント
-        el.onmouseenter = () => showPopup(c, infoText);
-        el.onmousemove = (e) => movePopup(e);
-        el.onmouseleave = () => hidePopup();
-
-        container.appendChild(el);
+        if (activeTab === 'target') return isOld && !isSafe;
+        if (activeTab === 'star') return c.isFavorite;
+        if (activeTab !== 'all') return c.category === activeTab;
+        return true;
     });
 
-    // サマリー情報の更新
-    document.getElementById('count-total').textContent = channels.length;
-    document.getElementById('count-target').textContent = targetCount;
-    document.getElementById('btn-delete').disabled = targetCount === 0;
+    filtered.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'channel-item';
+        const isTarget = c.lastUploadDate !== 'pending' && (c.lastUploadDate === 'none' || new Date(c.lastUploadDate) < limitDate) && !c.isFavorite && c.subscribers < 100000;
+
+        item.innerHTML = `
+            <i class="fas fa-star fav-btn ${c.isFavorite ? 'active' : ''}" onclick="toggleFav('${c.channelId}')"></i>
+            <img src="${c.thumbnails}" onclick="window.open('https://youtube.com/channel/${c.channelId}', '_blank')">
+            <div class="info">
+                <div class="title">${c.title} <span class="badge">${c.category}</span></div>
+                <div class="meta">登録者: ${c.subscribers.toLocaleString()}人 | 動画: ${c.videoCount}本</div>
+                <div class="meta">最終更新: ${c.lastUploadDate === 'pending' ? '未分析' : c.lastUploadDate.split('T')[0]}</div>
+            </div>
+            ${isTarget ? '<i class="fas fa-trash-alt" style="color:var(--err)"></i>' : ''}
+        `;
+        container.appendChild(item);
+    });
 }
 
-// 5. ポップアップ制御関数
-function showPopup(c, infoText) {
-    const p = document.getElementById('channel-popup');
-    document.getElementById('popup-img').src = c.thumbnails;
-    document.getElementById('popup-title').textContent = c.title;
-    document.getElementById('popup-info').innerHTML = `
-        <i class="fas fa-users"></i> 登録者: ${c.subscribers.toLocaleString()}人<br>
-        <i class="fas fa-video"></i> 動画数: ${c.videoCount}本<br>
-        <i class="fas fa-clock"></i> 状況: ${infoText}
-    `;
-    p.style.display = 'block';
+// 星付け機能
+function toggleFav(id) {
+    const c = allChannels.find(x => x.channelId === id);
+    c.isFavorite = !c.isFavorite;
+    favorites = allChannels.filter(x => x.isFavorite).map(x => x.channelId);
+    localStorage.setItem('subcleaner_favs', JSON.stringify(favorites));
+    renderList();
 }
 
-function movePopup(e) {
-    const p = document.getElementById('channel-popup');
-    p.style.left = (e.pageX + 15) + 'px';
-    p.style.top = (e.pageY + 15) + 'px';
+// ジャンルタブの生成
+function renderTabs() {
+    const tabsContainer = document.getElementById('category-tabs');
+    const categories = [...new Set(allChannels.map(c => c.category))];
+    categories.forEach(cat => {
+        const tab = document.createElement('div');
+        tab.className = 'tab';
+        tab.dataset.cat = cat;
+        tab.innerText = cat;
+        tab.onclick = function() {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            renderList();
+        };
+        tabsContainer.appendChild(tab);
+    });
 }
 
-function hidePopup() {
-    document.getElementById('channel-popup').style.display = 'none';
-}
-
-// 6. 一括解除実行
-async function bulkDelete() {
-    const ids = Array.from(document.querySelectorAll('.cb:checked')).map(cb => cb.value);
-    if (!confirm(`${ids.length}件のチャンネル登録を解除します。よろしいですか？\n※保護されているチャンネルは含まれません。`)) return;
-
-    const btn = document.getElementById('btn-delete');
-    btn.disabled = true;
-    btn.textContent = '解除処理中...';
-
-    try {
-        const res = await fetch('/api/subscriptions/bulk-delete', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({subscriptionIds: ids})
-        }).then(r => r.json());
-
-        alert(`完了: ${res.successCount}件成功 / ${res.failCount}件失敗`);
-        
-        // ローカルデータの更新（削除されたものをリストから除外）
-        channels.forEach(c => {
-            if (ids.includes(c.subscriptionId)) c.isSubscribed = false;
-        });
-        render();
-    } catch (err) {
-        alert('処理中にエラーが発生しました。');
-    } finally {
-        btn.textContent = '選択したチャンネルを解除';
+// 起動処理
+document.addEventListener('DOMContentLoaded', async () => {
+    const status = await (await fetch('/api/auth/status')).json();
+    if (status.ok) {
+        document.getElementById('app-section').style.display = 'block';
+        loadChannels();
+    } else {
+        document.getElementById('login-section').style.display = 'block';
     }
-}
+});
 
-// イベントリスナーの登録
-document.getElementById('btn-analyze').onclick = analyze;
-document.getElementById('btn-delete').onclick = bulkDelete;
-document.getElementById('btn-logout').onclick = () => { location.href = '/logout'; };
+document.getElementById('btn-analyze').onclick = analyzeChannels;
+document.getElementById('slider-months').oninput = function() {
+    document.getElementById('val-months').innerText = this.value;
+    renderList();
+};
