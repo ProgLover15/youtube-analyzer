@@ -2,6 +2,8 @@ services:
   - type: web
     name: sub-cleaner-app
     env: python
+    # buildCommandとstartCommandの間にこれを追加
+    rootDir: . 
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
@@ -11,7 +13,7 @@ services:
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
-      - key: REDIRECT_URI  # これを必ず追加
+      - key: REDIRECT_URI
         sync: false
       - key: PYTHON_VERSION
         value: 3.10.0
