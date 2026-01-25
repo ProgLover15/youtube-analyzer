@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: sub-cleaner-app  # "youtube-analyzer" から変更
+    name: sub-cleaner-app
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
@@ -11,3 +11,7 @@ services:
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
+      - key: REDIRECT_URI  # これを必ず追加
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.10.0
