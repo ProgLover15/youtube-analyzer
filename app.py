@@ -3,20 +3,23 @@ import google.oauth2.credentials
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
-from flask import Flask, redirect, request, session, url_for, jsonify
+from flask import Flask, redirect, request, session, url_for, jsonify, send_from_directory
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # 環境変数の読み込み
 load_dotenv()
 
-app = Flask(__name__, static_folder='.', static_url_path='')
+# アプリのルートディレクトリを絶対パスで特定
+root_dir = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(__name__, static_folder=root_dir, static_url_path='')
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
 if not app.secret_key:
     raise ValueError("FLASK_SECRET_KEY is not set in environment variables")
 
-# Render等のプロキシ環境下でリダイレクトURI(https)を正しく認識させるために必須
+# Render等のHTTPS環境でのプロキシ設定（リダイレクトURIの整合性を保つ）
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 app.config.update(
@@ -26,7 +29,7 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=3600
 )
 
-# 警告回避設定
+# 警告回避
 os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 
 API_SERVICE_NAME = "youtube"
@@ -34,20 +37,16 @@ API_VERSION = "v3"
 SCOPES = ["https://www.googleapis.com/auth/youtube", "https://www.googleapis.com/auth/youtube.readonly"]
 
 def get_flow():
-    """
-    リダイレクトURIエラーを防止するためのフロー生成関数
-    """
-    # .envから取得（環境変数に設定されていることが前提）
+    """OAuthフローを生成し、環境変数からリダイレクトURIを厳密に適用する"""
     redirect_uri = os.getenv("REDIRECT_URI")
     
-    # client_config形式で明示的に redirect_uris を渡す
     client_config = {
         "web": {
             "client_id": os.getenv("GOOGLE_CLIENT_ID"),
             "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [redirect_uri]  # ここがリスト形式であることが重要
+            "redirect_uris": [redirect_uri]
         }
     }
     
@@ -64,23 +63,30 @@ def build_youtube_service():
     credentials = google.oauth2.credentials.Credentials(**session['credentials'])
     return googleapiclient.discovery.build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
+# --- 静的ファイル配信（Not Found対策） ---
+
 @app.route('/')
 def index():
-    return app.send_static_file('index.html')
+    """ルートパスでindex.htmlを確実に返す"""
+    return send_from_directory(root_dir, 'index.html')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    """JSやCSSなどの静的ファイルをルートから配信する"""
+    return send_from_directory(root_dir, path)
+
+# --- 認証関連 ---
 
 @app.route('/login')
 def login():
-    # flowを生成して認証URLへ飛ばす
     flow = get_flow()
     auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline')
     return redirect(auth_url)
 
 @app.route('/callback')
 def callback():
-    # 帰ってきたときも同じ設定でflowを生成
     flow = get_flow()
-    
-    # プロキシ環境でURLがhttpに書き換わってしまうのを防ぐ
+    # プロキシ下でのURL不一致を解消
     authorization_response = request.url.replace('http://', 'https://')
     
     flow.fetch_token(authorization_response=authorization_response)
@@ -128,7 +134,7 @@ def get_all_channels():
 
             channel_ids = [item['snippet']['resourceId']['channelId'] for item in items]
             
-            # 統計情報をまとめて取得
+            # 統計情報をまとめて取得（登録者数・動画本数）
             stats_res = youtube.channels().list(
                 part="statistics",
                 id=",".join(channel_ids)
