@@ -3,7 +3,7 @@ import google.oauth2.credentials
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
-from flask import Flask, redirect, request, session, url_for, jsonify, send_from_directory
+from flask import Flask, redirect, request, session, url_for, jsonify, Response
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -11,10 +11,9 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 load_dotenv()
 
 # アプリの物理的な絶対パスを取得
-# Render上では /opt/render/project/src などを指します
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
-# static_folderをNoneに設定し、ルーティングで明示的に配信することで404を防ぐ
+# static_folderをNoneに設定し、自動配信を停止。手動ルーティングで確実に中身を返す。
 app = Flask(__name__, static_folder=None)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
@@ -38,24 +37,36 @@ API_SERVICE_NAME = "youtube"
 API_VERSION = "v3"
 SCOPES = ["https://www.googleapis.com/auth/youtube", "https://www.googleapis.com/auth/youtube.readonly"]
 
-# --- 静的ファイル配信 (Not Found対策) ---
+# --- ファイル読み込み関数（200 0 回避用） ---
+
+def get_physical_file(filename, mimetype):
+    """ファイルを物理的に読み込み、Flaskレスポンスとして返す"""
+    path = os.path.join(base_dir, filename)
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            content = f.read()
+            # ログでファイルサイズを確認可能にする
+            print(f"Serving {filename}: {len(content)} bytes")
+            return Response(content, mimetype=mimetype)
+    print(f"File not found: {path}")
+    return f"{filename} not found", 404
+
+# --- ルーティング ---
 
 @app.route('/')
 def index():
-    """ルートアクセス時に index.html を確実に返す"""
-    return send_from_directory(base_dir, 'index.html')
+    """ルートにある index.html を物理読み込みで返す"""
+    return get_physical_file('index.html', 'text/html')
 
-@app.route('/<path:filename>')
-def serve_static(filename):
-    """script.js やその他のファイルをベースディレクトリから直接返す"""
-    return send_from_directory(base_dir, filename)
+@app.route('/script.js')
+def serve_js():
+    """ルートにある script.js を物理読み込みで返す"""
+    return get_physical_file('script.js', 'application/javascript')
 
 # --- Google OAuth フロー ---
 
 def get_flow():
-    """環境変数からリダイレクトURIを読み込み、OAuthフローを生成"""
     redirect_uri = os.getenv("REDIRECT_URI")
-    
     client_config = {
         "web": {
             "client_id": os.getenv("GOOGLE_CLIENT_ID"),
@@ -65,7 +76,6 @@ def get_flow():
             "redirect_uris": [redirect_uri]
         }
     }
-    
     flow = google_auth_oauthlib.flow.Flow.from_client_config(
         client_config,
         scopes=SCOPES
@@ -90,9 +100,7 @@ def login():
 @app.route('/callback')
 def callback():
     flow = get_flow()
-    # プロキシ経由で http になっている場合を考慮して置換
     authorization_response = request.url.replace('http://', 'https://')
-    
     flow.fetch_token(authorization_response=authorization_response)
     credentials = flow.credentials
     session['credentials'] = {
@@ -114,7 +122,7 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
-# --- YouTube Data API 操作 ---
+# --- YouTube API 操作 ---
 
 @app.route('/api/all-channels')
 def get_all_channels():
@@ -137,8 +145,6 @@ def get_all_channels():
             if not items: break
 
             channel_ids = [item['snippet']['resourceId']['channelId'] for item in items]
-            
-            # 統計情報（登録者数・動画本数）を一括取得
             stats_res = youtube.channels().list(
                 part="statistics",
                 id=",".join(channel_ids)
@@ -149,19 +155,15 @@ def get_all_channels():
             for item in items:
                 c_id = item['snippet']['resourceId']['channelId']
                 stats = stats_map.get(c_id, {})
-                
                 all_subs.append({
                     "subscriptionId": item['id'],
                     "channelId": c_id,
                     "title": item['snippet']['title'],
                     "thumbnails": item['snippet']['thumbnails']['default']['url'],
                     "lastUploadDate": "pending",
-                    "isSubscribed": True,
-                    "isFavorite": False,
                     "subscribers": int(stats.get('subscriberCount', 0)),
                     "videoCount": int(stats.get('videoCount', 0))
                 })
-            
             next_page_token = subs_res.get('nextPageToken')
             if not next_page_token: break
                 
@@ -183,19 +185,6 @@ def analyze():
         return jsonify({"channelId": c_id, "lastUploadDate": date})
     except:
         return jsonify({"lastUploadDate": "none"})
-
-@app.route('/api/subscriptions/bulk-delete', methods=['POST'])
-def bulk_delete():
-    youtube = build_youtube_service()
-    if not youtube: return jsonify({"error": "Unauthorized"}), 401
-    ids = request.get_json().get('subscriptionIds', [])
-    success, fail = 0, 0
-    for s_id in ids:
-        try:
-            youtube.subscriptions().delete(id=s_id).execute()
-            success += 1
-        except: fail += 1
-    return jsonify({"successCount": success, "failCount": fail})
 
 if __name__ == '__main__':
     app.run(debug=True)
