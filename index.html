@@ -7,67 +7,44 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root { 
-            --bg: #0f0f0f; 
-            --surf: #212121; 
-            --card: #282828; 
-            --txt: #fff; 
-            --sec: #aaa; 
-            --accent: #3ea6ff; 
-            --err: #f44336; 
+            --bg: #0f0f0f; --surf: #212121; --card: #282828; 
+            --txt: #fff; --sec: #aaa; --accent: #3ea6ff; --err: #f44336; 
         }
-        body { 
-            font-family: 'Roboto', sans-serif; 
-            background: var(--bg); 
-            color: var(--txt); 
-            padding: 20px; 
-            line-height: 1.6;
-        }
+        body { font-family: 'Roboto', sans-serif; background: var(--bg); color: var(--txt); padding: 20px; line-height: 1.6; }
         .container { max-width: 800px; margin: auto; }
-        .card { 
-            background: var(--card); 
-            padding: 20px; 
-            border-radius: 12px; 
-            margin-bottom: 20px; 
-            border: 1px solid #3f3f3f; 
-        }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #3f3f3f; }
         
-        /* 3. スライダーデザイン */
+        /* フィルタースライダー */
         .filter-group { margin: 20px 0; }
-        input[type="range"] { 
-            width: 100%; 
-            height: 8px; 
-            border-radius: 5px; 
-            background: #444; 
-            outline: none; 
-            cursor: pointer;
-        }
+        input[type="range"] { width: 100%; height: 8px; border-radius: 5px; background: #444; outline: none; cursor: pointer; }
 
-        /* 2. プログレスバー（シークバー） */
+        /* プログレスバー */
         #progress-area { display: none; }
         .bar-bg { background: #444; height: 12px; border-radius: 6px; overflow: hidden; margin-top: 10px; }
         .bar-fill { background: var(--accent); height: 100%; width: 0%; transition: width 0.3s; }
 
-        .channel-item { 
-            display: flex; 
-            align-items: center; 
-            padding: 12px; 
-            border-bottom: 1px solid #3f3f3f; 
-        }
+        /* チャンネルアイテム */
+        .channel-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #3f3f3f; transition: background 0.2s; }
+        .channel-item:hover { background: #333; }
         .channel-item img { width: 45px; height: 45px; border-radius: 50%; margin-right: 15px; }
 
-        .btn { 
-            padding: 12px 24px; 
-            border-radius: 6px; 
-            border: none; 
-            cursor: pointer; 
-            font-weight: bold; 
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
+        /* ボタン */
+        .btn { padding: 12px 24px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; transition: opacity 0.2s; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-primary { background: var(--accent); color: #000; }
         .btn-danger { background: var(--err); color: #fff; }
+
+        /* 星（ホワイトリスト）ボタン */
+        .fav-btn { cursor: pointer; color: #444; font-size: 1.2em; margin: 0 10px; transition: color 0.2s; }
+        .fav-btn.active { color: #ffeb3b; }
+
+        /* ポップアップ（オーバーレイ） */
+        #channel-popup {
+            display: none; position: absolute; z-index: 1000; 
+            background: var(--card); border: 1px solid var(--accent); 
+            padding: 15px; border-radius: 8px; width: 260px; 
+            pointer-events: none; box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+        }
 
         footer { text-align: center; margin-top: 50px; font-size: 0.85em; color: var(--sec); }
         footer a { color: var(--accent); text-decoration: none; margin: 0 10px; }
@@ -81,17 +58,15 @@
         </header>
 
         <div id="login-section" class="card" style="text-align: center;">
-            <h2>登録チャンネルの整理</h2>
+            <h2>登録チャンネルの整理 (SubCleaner)</h2>
             <p>長期間更新されていないチャンネルを特定し、整理をサポートします。</p>
-            
             <div style="margin: 20px 0; font-size: 0.8em; color: var(--sec);">
                 ログインすることで、
                 <a href="https://www.youtube.com/t/terms" target="_blank" style="color: var(--accent);">YouTube 利用規約</a> および 
-                <a href="#" id="link-privacy-login" style="color: var(--accent);">プライバシーポリシー</a> 
+                <a href="http://www.google.com/policies/privacy" target="_blank" style="color: var(--accent);">プライバシーポリシー</a> 
                 に同意したものとみなされます。
             </div>
-
-            <a href="/auth/google" class="btn btn-primary" style="gap: 10px;">
+            <a href="/login" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 10px;">
                 <i class="fab fa-google"></i> Googleでログインして開始
             </a>
         </div>
@@ -106,6 +81,7 @@
                 <div class="filter-group">
                     <label><b>非アクティブ期間: <span id="val-months" style="color:var(--accent)">3</span> ヶ月以上投稿なし</b></label>
                     <input type="range" id="slider-months" min="0" max="24" value="3">
+                    <p style="font-size: 0.8em; color: var(--sec); margin-top: 5px;">※登録者10万人以上のチャンネルは自動的に保護されます。</p>
                 </div>
             </div>
 
@@ -120,15 +96,23 @@
                 <button id="btn-logout" style="background:none; color:var(--sec); border:1px solid #444; margin-left:auto; cursor:pointer; padding: 5px 10px; border-radius: 4px;">ログアウト</button>
             </div>
 
-            <div id="list-container" class="card" style="padding:0"></div>
+            <div id="list-container" class="card" style="padding:0; overflow: hidden;"></div>
         </div>
 
         <footer>
             <a href="https://www.youtube.com/t/terms" target="_blank">YouTube利用規約</a> | 
-            <a href="#" id="link-privacy">プライバシーポリシー</a> | 
+            <a href="http://www.google.com/policies/privacy" target="_blank">Googleプライバシーポリシー</a> | 
             <a href="https://myaccount.google.com/connections" target="_blank">Google連携解除</a>
-            <p style="margin-top:15px">&copy; 2026 SubCleaner</p>
+            <p style="margin-top:15px">&copy; 2024-2026 SubCleaner (Compliance Version)</p>
         </footer>
+    </div>
+
+    <div id="channel-popup">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+            <img id="popup-img" src="" style="width: 40px; height: 40px; border-radius: 50%;">
+            <div id="popup-title" style="font-weight: bold; font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;"></div>
+        </div>
+        <div id="popup-info" style="font-size: 0.8em; line-height: 1.5; color: #aaa;"></div>
     </div>
 
     <script src="script.js"></script>
